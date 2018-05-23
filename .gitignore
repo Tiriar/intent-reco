@@ -1,0 +1,11 @@
+__pycache__/
+.cache/
+.idea/
+
+# data folder
+data/*
+!data/starspace_C4C_2e_50k*
+!data/templates.json
+
+# models.py module of InferSent that needs to be in the working directory
+models.py
