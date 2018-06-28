@@ -5,8 +5,8 @@ import numpy as np
 from numpy.linalg import norm
 
 from model_compression import chunks, convert_vec
-from utils.embedding_wrappers import CompressedModel
-from utils.lbg import generate_codebook
+from embedding_wrappers import CompressedModel
+from lbg import generate_codebook
 
 STARSPACE_PATH = 'data/starspace_C4C_2e_50k.txt'
 STARSPACE_CB_PATH = 'data/starspace_C4C_2e_50k_cb.txt'
