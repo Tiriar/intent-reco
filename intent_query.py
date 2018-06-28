@@ -2,21 +2,22 @@
 
 import json
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+from numpy.linalg import norm
 
 from model_compression import chunks, convert_vec
-from embedding_wrappers import CompressedModel
-from lbg import generate_codebook
+from utils.embedding_wrappers import CompressedModel
+from utils.lbg import generate_codebook
 
 STARSPACE_PATH = 'data/starspace_C4C_2e_50k.txt'
 STARSPACE_CB_PATH = 'data/starspace_C4C_2e_50k_cb.txt'
 TEMPLATES = 'data/templates.json'
 
 
-def find_intent(t, mat):
+def find_intent(t, tn, mat):
     """
     Print the closest intent based on templates <t> and similarity matrix <mat>.
     :param t: quantized template vector set
+    :param tn: template norms
     :param mat: matrix of the precomputed cosine similarities
     """
     best = 0
@@ -27,6 +28,7 @@ def find_intent(t, mat):
             sim = 0
             for pos, num in enumerate(s):
                 sim += mat[num][pos]
+            sim /= tn[intent][s_idx]
 
             if sim > best:
                 best = sim
@@ -75,7 +77,7 @@ for key in templates:
     tmp = []
     for sent in templates[key]:
         tmp.append(sent['text'])
-        templates[key] = tmp
+    templates[key] = tmp
 
 print('Loading the embedding model...')
 model = CompressedModel(STARSPACE_PATH, STARSPACE_CB_PATH, dim=30, normalized=True)
@@ -86,8 +88,8 @@ for key in templates:
     templates_vec[key] = model.transform(templates[key])
 
 print('Quantizing the templates...')
-D_SV = 4
-D_CB = 8
+D_SV = 2
+D_CB = 16
 
 sizes = normalize(templates_vec)
 lbg_data = []
@@ -101,15 +103,24 @@ for key in templates_vec:
     for i in range(len(templates_vec[key])):
         templates_vec[key][i] = convert_vec(templates_vec[key][i], D_SV, codebook)
 
+template_norms = {}
+for key in templates_vec:
+    template_norms[key] = []
+    for sent in templates_vec[key]:
+        sq_sum = 0
+        for idx in sent:
+            sq_sum += sum(codebook[idx]**2)
+        template_norms[key].append(sq_sum**(1/2))
+
 print('\n===READY===')
 inp = None
 while inp not in ['exit', 'stop']:
     if inp is not None:
         # pre-compute the similarity matrix
         vec = model.transform([inp])
-        svs = split_vecs(vec, n=D_SV)
-        matrix = cosine_similarity(codebook, svs)
+        svs = np.array(split_vecs(vec, n=D_SV))
+        matrix = np.dot(codebook, svs.transpose()) / norm(vec)
 
         # find the intent
-        find_intent(templates_vec, matrix)
+        find_intent(templates_vec, template_norms, matrix)
     inp = input('Write query: ')
