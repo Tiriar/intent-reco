@@ -4,12 +4,13 @@ import json
 import numpy as np
 from numpy.linalg import norm
 
-from model_compression import chunks, convert_vec
-from embedding_wrappers import CompressedModel
-from lbg import generate_codebook
+from model_compression import split_vecs, convert_vec
+from utils.embedding_wrappers import CompressedModel
+from utils.lbg import generate_codebook
 
-STARSPACE_PATH = 'data/starspace_C4C_2e_50k.txt'
-STARSPACE_CB_PATH = 'data/starspace_C4C_2e_50k_cb.txt'
+EMBEDDING_PATH = 'data/starspace_C4C_2e_50k.txt'
+EMBEDDING_CB_PATH = 'data/starspace_C4C_2e_50k_cb.txt'
+EMBEDDING_DIM = 30
 TEMPLATES = 'data/templates.json'
 
 
@@ -55,19 +56,6 @@ def normalize(t):
     return vsize
 
 
-def split_vecs(d, n=4):
-    """
-    Splits vectors in <d> into sub-vectors of size <n> and returns them in a list.
-    :param d: input dictionary
-    :param n: size of sub-vectors
-    :return: list of sub-vectors
-    """
-    vecs = []
-    for v in d:
-        vecs += list(chunks(v, n))
-    return vecs
-
-
 print('Loading templates...')
 with open(TEMPLATES) as f:
     templates = json.load(f)
@@ -80,7 +68,7 @@ for key in templates:
     templates[key] = tmp
 
 print('Loading the embedding model...')
-model = CompressedModel(STARSPACE_PATH, STARSPACE_CB_PATH, dim=30, normalized=True)
+model = CompressedModel(EMBEDDING_PATH, EMBEDDING_CB_PATH, dim=EMBEDDING_DIM, normalized=True)
 
 print('Converting the templates...')
 templates_vec = {}
@@ -91,6 +79,7 @@ print('Quantizing the templates...')
 D_SV = 2
 D_CB = 16
 
+# prepare the data for LBG
 sizes = normalize(templates_vec)
 lbg_data = []
 for key in templates_vec:
@@ -98,11 +87,13 @@ for key in templates_vec:
 dim = len(lbg_data[0])
 lbg_data = split_vecs(lbg_data, n=D_SV)
 
+# compute the quantization codebook
 codebook = generate_codebook(lbg_data, cb_size=D_CB)[0]
 for key in templates_vec:
     for i in range(len(templates_vec[key])):
         templates_vec[key][i] = convert_vec(templates_vec[key][i], D_SV, codebook)
 
+# compute the norms of the quantized templates
 template_norms = {}
 for key in templates_vec:
     template_norms[key] = []

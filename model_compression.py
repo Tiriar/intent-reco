@@ -1,42 +1,12 @@
 """Module for compressing the embedding models."""
 
-import lbg
 import numpy as np
+import utils.lbg as lbg
 import matplotlib.pyplot as plt
 from sys import maxsize
-from random import sample, seed
-from operator import itemgetter
-from utils_sent2vec import preprocess_sentences
-
-
-def load_embeddings(path, dim=300, k=None, header=False, normalize=False):
-    """
-    Loads the embedding vectors into dictionary.
-    :param path: path to the embeddings file
-    :param dim: embedding dimension
-    :param k: number of vectors to load
-    :param header: skip header
-    :param normalize: normalize the vectors to unit length
-    :return: dict: {'<words>': <vectors>}, dict: {'<words>': <vector sizes>}
-    """
-    d = {}
-    vsize = {}
-    i = 0
-    with open(path, 'r', encoding='utf-8') as f:
-        if header:
-            next(f)
-        for line in f:
-            if k is None or i < k:
-                tmp = line.strip().split()
-                w = ' '.join(tmp[:len(tmp)-dim])
-                v = np.asarray(tmp[-dim:], dtype=np.float)
-                n = np.linalg.norm(v)
-                d[w] = v / n if normalize else v
-                vsize[w] = n
-                i += 1
-            else:
-                break
-    return d, vsize
+from utils.utils import get_indices
+from utils.utils_data import load_sts, load_model_txt, load_model_ft_bin
+from utils.utils_sent2vec import preprocess_sentences
 
 
 def chunks(l, n):
@@ -53,47 +23,45 @@ def chunks(l, n):
 def split_vecs(d, n=4, limit=None):
     """
     Splits vectors in <d> into sub-vectors of size <n> and returns them in a list.
-    :param d: input dictionary
+    :param d: input vectors
     :param n: size of sub-vectors
     :param limit: pick a random subset from the vectors of <limit> size
     :return: list of sub-vectors
     """
     if limit is not None and limit < len(d):
-        elems = sample(list(d.values()), limit)
-        # visualize_vectors(elems)
+        elems = d[np.random.choice(d.shape[0], limit, replace=False), :]
     else:
-        elems = d.values()
-
-    vecs = []
+        elems = d
+    # visualize_vectors(elems)
+    vectors = []
     for v in elems:
-        vecs += list(chunks(v, n))
-    return vecs
+        vectors += list(chunks(v, n))
+    return vectors
 
 
 def split_vecs_distinct(d, n=4, limit=None):
     """
     Splits vectors in <d> into sub-vectors of size <n> and returns
-    a list of sub-vectors for each position in a dictionary.
-    :param d: input dictionary
+    a list of sub-vectors for each sub-vector position.
+    :param d: input vectors
     :param n: size of sub-vectors
     :param limit: pick a random subset from the vectors of <limit> size
     :return: dict: {<sub-vector position>: <list of sub-vectors>}
     """
     if limit is not None and limit < len(d):
-        elems = sample(list(d.values()), limit)
-        len_pos = len(list(chunks(elems[0], n)))
+        elems = d[np.random.choice(d.shape[0], limit, replace=False), :]
     else:
-        elems = d.values()
-        len_pos = len(list(chunks(next(iter(d.values())), n)))
+        elems = d
+    len_pos = len(list(chunks(elems[0], n)))
 
-    vecs = {}
+    vectors = {}
     for i in range(len_pos):
-        vecs[i] = []
+        vectors[i] = []
 
     for v in elems:
         for i, chunk in enumerate(chunks(v, n)):
-            vecs[i].append(chunk)
-    return vecs
+            vectors[i].append(chunk)
+    return vectors
 
 
 def convert_vec(v, n, cdb):
@@ -126,73 +94,86 @@ def convert_vec_distinct(v, n, cdb):
     conv = []
     for i, chunk in enumerate(list(chunks(v, n))):
         dist = np.sum((cdb[i]-chunk)**2, axis=1)
-        idx = np.asscalar(np.argmin(dist))
-        conv.append(idx)
+        j = np.asscalar(np.argmin(dist))
+        conv.append(j)
     return conv
 
 
-def prune_by_norm(d, vsize, trn=None, keep=10000):
+def prune_by_norm(words, vectors, vsize, trn=None, keep=10000):
     """
     Prune the vocabulary based on vector norms in a way that at least one word from each training sample is kept.
     In case all samples are covered, more words are added until the resulting vocabulary has <keep> words.
-    :param d: input dictionary
-    :param vsize: embedding sizes dictionary
+    :param words: input vocabulary
+    :param vectors: input embedding vectors
+    :param vsize: input embedding norms
     :param trn: list of training samples (if None, words are chosen solely by norms)
     :param keep: number of words to keep (can be more based on the training set)
-    :return: pruned <d> and <vsize>
+    :return: pruned <words>, <vectors> and <vsize>
     """
-    d_out = {}
-    vsize_out = {}
+    words_keep = []
 
     # cover the training set
     if trn is not None:
         for el in trn:
             tokens = el.split()
-            tsize = [vsize.get(t, -1) for t in tokens]
+            indices = get_indices(tokens, words)
+            tsize = []
+            for i in indices:
+                tsize.append(-1 if i < 0 else vsize[i])
             max_idx = int(np.argmax(tsize))
             if tsize[max_idx] < 0:
                 continue
             best_w = tokens[max_idx]
-            if best_w not in d_out:
-                d_out[best_w] = d[best_w]
-                vsize_out[best_w] = vsize[best_w]
+            if best_w not in words_keep:
+                words_keep.append(best_w)
 
     # add words to get <keep> words
-    words_sorted = sorted(vsize.items(), key=itemgetter(1))
-    kept = len(d_out) + 1
+    words_sorted = [x for _, x in sorted(zip(vsize, words))]
+    kept = len(words_keep) + 1
     for w in words_sorted:
         if kept > keep:
             break
-        if w[0] not in d_out:
-            d_out[w[0]] = d[w[0]]
-            vsize_out[w[0]] = w[1]
+        if w not in words_keep:
+            words_keep.append(w)
             kept += 1
 
-    return d_out, vsize_out
+    # create the pruned lists
+    words_out = []
+    vectors_out = []
+    vsize_out = []
+    for i, w in enumerate(words):
+        if w in words_keep:
+            words_out.append(w)
+            vectors_out.append(vectors[i])
+            vsize_out.append(vsize[i])
+
+    return words_out, vectors_out, vsize_out
 
 
-def prune_by_trn(d, vsize, trn):
+def prune_by_trn(words, vectors, vsize, trn):
     """
     Prune the vocabulary so that only words in the training set are kept.
-    :param d: input dictionary
-    :param vsize: embedding sizes dictionary
+    :param words: input vocabulary
+    :param vectors: input embedding vectors
+    :param vsize: input embedding norms
     :param trn: list of training samples
-    :return: pruned <d> and <vsize>
+    :return: pruned <words>, <vectors> and <vsize>
     """
-    d_out = {}
-    vsize_out = {}
-
     tokens = []
     for el in trn:
         tokens += el.split()
     tokens = set(tokens)
 
-    for w in d:
+    words_out = []
+    vectors_out = []
+    vsize_out = []
+    for i, w in enumerate(words):
         if w in tokens:
-            d_out[w] = d[w]
-            vsize_out[w] = vsize[w]
+            words_out.append(w)
+            vectors_out.append(vectors[i])
+            vsize_out.append(vsize[i])
 
-    return d_out, vsize_out
+    return words_out, vectors_out, vsize_out
 
 
 def visualize_vectors(vs):
@@ -206,67 +187,68 @@ def visualize_vectors(vs):
     plt.show()
 
 
-FASTTEXT_EMBEDDINGS_VEC = 'data/wiki.en.vec'
-TRN_PATH = 'data/trn_set.csv'
+EMBEDDINGS = 'data/torontobooks_unigrams.bin'
 
-DIM = 300               # Input embedding dimension
-LIMIT = 200000          # Use only first <LIMIT> vectors - usually highest frequency words
+DIM = 700               # Input embedding dimension
+LIMIT = 100000          # Use only first <LIMIT> vectors - usually highest frequency words
 PRUNE = False           # Prune the vocabulary using embedding norms
-PRUNE_ONLY = True       # Only prune the vocabulary without quantization (when PRUNE = True)
+PRUNE_ONLY = True       # Only prune the vocabulary without quantization (when <PRUNE> = True)
 PRUNE_KEEP = 20000      # Number of words to keep when pruning (K)
-D_SV = 4                # Size of sub-vectors the embedding vectors are split into
-D_CB = 8                # Codebook size
+D_SV = 10               # Size of sub-vectors the embedding vectors are split into
+D_CB = 128              # Codebook size
 TRN_SIZE = 10000        # Maximum number of randomly picked vectors for computing the codebook
 NORMALIZE = True        # Normalize the embeddings to unit length (original size stored as additional dimension)
 DISTINCT_CB = False     # Create a distinct codebook for each sub-vector position
+NORM_PRECISION = 5      # Number of decimals to use for writing vector norms when <NORMALIZE> = True
 
 if PRUNE and PRUNE_ONLY:
     NORMALIZE = False
 
-FT_PRUNED = 'model_pruned_' + str(PRUNE_KEEP) + '.txt'
-FT_COMPRESSED = 'model_' + str(D_SV) + 'sv_' + str(D_CB) + 'cb'
-FT_COMPRESSED_CB = 'model_' + str(D_SV) + 'sv_' + str(D_CB) + 'cb'
+EMB_PRUNED = 'model_pruned_' + str(PRUNE_KEEP) + '.txt'
+EMB_COMPRESSED = 'model_' + str(D_SV) + 'sv_' + str(D_CB) + 'cb'
+EMB_COMPRESSED_CB = 'model_' + str(D_SV) + 'sv_' + str(D_CB) + 'cb'
 if DISTINCT_CB:
-    FT_COMPRESSED += '_dist'
-    FT_COMPRESSED_CB += '_dist'
+    EMB_COMPRESSED += '_dist'
+    EMB_COMPRESSED_CB += '_dist'
 elif NORMALIZE:
-    FT_COMPRESSED += '_norm'
-    FT_COMPRESSED_CB += '_norm'
-FT_COMPRESSED += '.txt'
-FT_COMPRESSED_CB += '_cb.txt'
+    EMB_COMPRESSED += '_norm'
+    EMB_COMPRESSED_CB += '_norm'
+EMB_COMPRESSED += '.txt'
+EMB_COMPRESSED_CB += '_cb.txt'
 
 # TODO: Quantize also the vector sizes after normalization?
 if __name__ == '__main__':
-    seed(1)
-
     print('Loading data...')
-    data, sizes = load_embeddings(FASTTEXT_EMBEDDINGS_VEC, dim=DIM, k=LIMIT, header=True, normalize=NORMALIZE)
+    if EMBEDDINGS.endswith('.bin'):
+        vocab, vecs, sizes = load_model_ft_bin(EMBEDDINGS, k=LIMIT, normalize=NORMALIZE)
+    else:
+        vocab, vecs, sizes = load_model_txt(EMBEDDINGS, dim=DIM, k=LIMIT, header=True, normalize=NORMALIZE)
+
     if PRUNE:
         print('Pruning vocabulary...')
-        with open(TRN_PATH) as fd:
-            train = fd.readlines()
-        train = preprocess_sentences(train, use_pos_tagger=False)
-        data, sizes = prune_by_norm(data, sizes, trn=train, keep=PRUNE_KEEP)
-        # data, sizes = prune_by_trn(data, sizes, train)
-        print('- pruned vocabulary size:', len(data))
+        sts = load_sts('data/stsbenchmark/sts-train.csv')
+        sts = preprocess_sentences(sts['X1'] + sts['X2'], use_pos_tagger=False)
+        vocab, vecs, sizes = prune_by_norm(vocab, vecs, sizes, trn=sts, keep=PRUNE_KEEP)
+        # vocab, vecs, sizes = prune_by_trn(vocab, vecs, sizes, sts)
+        print('- pruned vocabulary size:', len(vocab))
 
         if PRUNE_ONLY:
             print('Writing pruned embeddings...')
             emb_out = []
-            for key, value in data.items():
-                s = key
-                for num in value:
+            for idx, word in enumerate(vocab):
+                s = word
+                for num in vecs[idx]:
                     s += ' ' + str(num)
                 emb_out.append(s + '\n')
 
-            with open(FT_PRUNED, 'w+', encoding='utf-8') as file:
-                file.write(str(len(data)) + ' ' + str(DIM) + '\n')
+            with open(EMB_PRUNED, 'w+', encoding='utf-8') as file:
+                file.write(str(len(vocab)) + ' ' + str(DIM) + '\n')
                 file.writelines(emb_out)
 
     if not PRUNE or not PRUNE_ONLY:
         if DISTINCT_CB:
             print('Computing codebook...')
-            lbg_data = split_vecs_distinct(data, n=D_SV, limit=TRN_SIZE)
+            lbg_data = split_vecs_distinct(vecs, n=D_SV, limit=TRN_SIZE)
             cb = {}
             for pos in lbg_data:
                 print('--- position:', pos, '---')
@@ -280,16 +262,9 @@ if __name__ == '__main__':
                         s += str(num) + ' '
                     cb_out.append(s.strip() + '\n')
 
-            print('Computing compressed embeddings...')
-            dout = {}
-            for key in data:
-                dout[key] = convert_vec_distinct(data[key], D_SV, cb)
-                if NORMALIZE:
-                    dout[key].append(sizes[key])
-
         else:
             print('Computing codebook...')
-            lbg_data = split_vecs(data, n=D_SV, limit=TRN_SIZE)
+            lbg_data = split_vecs(vecs, n=D_SV, limit=TRN_SIZE)
             cb, cb_abs_w, cb_rel_w = lbg.generate_codebook(lbg_data, cb_size=D_CB)
             print('centroid weights:', cb_rel_w)
 
@@ -300,24 +275,23 @@ if __name__ == '__main__':
                     s += str(num) + ' '
                 cb_out.append(s.strip() + '\n')
 
-            print('Computing compressed embeddings...')
-            dout = {}
-            for key in data:
-                dout[key] = convert_vec(data[key], D_SV, cb)
-                if NORMALIZE:
-                    dout[key].append(sizes[key])
-
         print('Writing codebook...')
-        with open(FT_COMPRESSED_CB, 'w+', encoding='utf-8') as file:
+        with open(EMB_COMPRESSED_CB, 'w+', encoding='utf-8') as file:
             file.writelines(cb_out)
 
-        print('Writing compressed embeddings...')
+        print('Computing compressed embeddings...')
+        prec = '{0:.' + str(NORM_PRECISION) + 'f}'
+        convert_func = convert_vec_distinct if DISTINCT_CB else convert_vec
         emb_out = []
-        for key, value in dout.items():
-            s = key
-            for num in value:
+        for idx, word in enumerate(vocab):
+            s = word
+            vec = convert_func(vecs[idx], D_SV, cb)
+            for num in vec:
                 s += ' ' + str(num)
+            if NORMALIZE:
+                s += ' ' + prec.format(sizes[idx])
             emb_out.append(s + '\n')
 
-        with open(FT_COMPRESSED, 'w+', encoding='utf-8') as file:
+        print('Writing compressed embeddings...')
+        with open(EMB_COMPRESSED, 'w+', encoding='utf-8') as file:
             file.writelines(emb_out)

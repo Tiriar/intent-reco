@@ -5,10 +5,10 @@ Currently used algorithms:
 - InferSent: https://github.com/facebookresearch/InferSent
 - sent2vec: https://github.com/epfml/sent2vec
 - GloVe: https://github.com/maciejkula/glove-python / SpaCy implementation
-- word2vec: gensim implementation
-- FastText: https://github.com/facebookresearch/fastText / gensim implementation
+- word2vec: Gensim implementation
+- FastText: https://github.com/facebookresearch/fastText / Gensim implementation
 - StarSpace: https://github.com/facebookresearch/StarSpace
-- TF-IDF: scikit-learn implementation
+- (TF-IDF: scikit-learn implementation)
 
 + Compressed models: Wrapper for models compressed using 'model_compression.py' module
 """
@@ -18,7 +18,7 @@ import csv
 import spacy
 import torch
 import sent2vec
-import utils_sent2vec as s2v
+import utils.utils_sent2vec as s2v
 
 from glove import Glove
 from gensim.models import KeyedVectors, Word2Vec
@@ -184,13 +184,13 @@ class GloVeSpacy:
 
 
 class WordEmbedding:
-    """Class for word2vec and FastText embedding algorithms contained in gensim package."""
+    """Class for word2vec and FastText embedding algorithms contained in Gensim package."""
     def __init__(self, emb_path, algorithm='word2vec', gensim_trained=False, k=None):
         """
         WordEmbedding initializer.
         :param emb_path: path to the embeddings file
         :param algorithm: word2vec or fasttext (default word2vec)
-        :param gensim_trained: the model was trained using gensim
+        :param gensim_trained: the model was trained using Gensim
         :param k: number of vectors to load to vocabulary
         """
         assert algorithm in ['word2vec', 'fasttext']
@@ -336,7 +336,7 @@ class StarSpace:
                 if k is None or i < k:
                     w = row[0]
                     vec = np.asarray(row[1:], dtype=np.float)
-                    if '__label__' in w:
+                    if w.startswith('__label__'):
                         w = w.replace('__label__', '')
                         self.labels.append(w)
                         self.label_vecs.append(vec)
@@ -420,6 +420,10 @@ class CompressedModel:
         :param normalized: original size of vectors added as last dimension
         :param distinct_cb: distinct codebook for each sub-vector position
         """
+        self.dim = dim
+        self.normalized = normalized
+        self.decode_func = self.decode_vec_distinct if distinct_cb else self.decode_vec
+
         self.cb = []
         with open(cb_path) as f:
             for line in f:
@@ -430,23 +434,28 @@ class CompressedModel:
 
         self.vocab = {}
         self.sizes = {}
+        self.labels = []
+        self.label_vecs = []
         int_type = np.uint16 if self.cb_size > 256 else np.uint8
         with open(emb_path) as f:
             for line in f:
                 tmp = line.strip().split()
                 if normalized:
                     w = ' '.join(tmp[:len(tmp)-dim-1])
-                    self.sizes[w] = float(tmp.pop())
+                    size = float(tmp.pop())
                 else:
                     w = ' '.join(tmp[:len(tmp)-dim])
-                    self.sizes[w] = 1
+                    size = 1
+
                 vec = np.asarray(tmp[-dim:], dtype=int_type)
-                self.vocab[w] = vec
 
-        self.dim = dim
-        self.normalized = normalized
-
-        self.decode_func = self.decode_vec_distinct if distinct_cb else self.decode_vec
+                if w.startswith('__label__'):
+                    w = w.replace('__label__', '')
+                    self.labels.append(w)
+                    self.label_vecs.append(self.decode_func(vec)*size)
+                else:
+                    self.sizes[w] = size
+                    self.vocab[w] = vec
 
     def transform(self, sents, verbose=False):
         """
@@ -476,6 +485,19 @@ class CompressedModel:
                 word_vecs.append(np.zeros((self.dim*self.cb_dim,)))
             vecs.append(np.average(word_vecs, axis=0))
         return vecs
+
+    def classify_sentences(self, sents):
+        """
+        Classify sentences into classes trained in the StarSpace model.
+        :param sents: list of sentences to classify
+        :return: list of classes
+        """
+        labels = []
+        sents = self.transform(sents)
+        for s in sents:
+            sim = cosine_similarity(s.reshape(1, -1), self.label_vecs)
+            labels.append(self.labels[np.asscalar(np.argmax(sim))])
+        return labels
 
     def decode_vec(self, vec):
         """

@@ -5,6 +5,23 @@ from sklearn.metrics.pairwise import cosine_similarity
 from gensim.models import Word2Vec
 
 
+def get_indices(inp, l):
+    """
+    Get indices of items in <inp> in list <l>. Gives -1 for items not present in <l>.
+    :param inp: list of searched items
+    :param l: list to search in
+    :return: list of indices in <l>
+    """
+    indices = []
+    for item in inp:
+        try:
+            idx = l.index(item)
+        except ValueError:
+            idx = -1
+        indices.append(idx)
+    return indices
+
+
 def is_number(s):
     """
     Checks if input string is a number.
