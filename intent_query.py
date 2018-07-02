@@ -10,7 +10,6 @@ from utils.lbg import generate_codebook
 
 EMBEDDING_PATH = 'data/starspace_C4C_2e_50k.txt'
 EMBEDDING_CB_PATH = 'data/starspace_C4C_2e_50k_cb.txt'
-EMBEDDING_DIM = 30
 TEMPLATES = 'data/templates.json'
 
 
@@ -68,7 +67,7 @@ for key in templates:
     templates[key] = tmp
 
 print('Loading the embedding model...')
-model = CompressedModel(EMBEDDING_PATH, EMBEDDING_CB_PATH, dim=EMBEDDING_DIM, normalized=True)
+model = CompressedModel(EMBEDDING_PATH, EMBEDDING_CB_PATH)
 
 print('Converting the templates...')
 templates_vec = {}

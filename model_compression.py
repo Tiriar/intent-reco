@@ -277,6 +277,8 @@ if __name__ == '__main__':
 
         print('Writing codebook...')
         with open(EMB_COMPRESSED_CB, 'w+', encoding='utf-8') as file:
+            header = str(D_CB) + ' ' + str(D_SV) + '\n'
+            file.write(header)
             file.writelines(cb_out)
 
         print('Computing compressed embeddings...')
@@ -294,4 +296,11 @@ if __name__ == '__main__':
 
         print('Writing compressed embeddings...')
         with open(EMB_COMPRESSED, 'w+', encoding='utf-8') as file:
+            header = str(len(emb_out)) + ' ' + str(int(DIM/D_SV))
+            if NORMALIZE:
+                header += ' NORM'
+            if DISTINCT_CB:
+                header += ' DIST'
+            header += '\n'
+            file.write(header)
             file.writelines(emb_out)

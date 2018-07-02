@@ -411,43 +411,43 @@ class TFIDF:
 
 class CompressedModel:
     """Wrapper for loading compressed models."""
-    def __init__(self, emb_path, cb_path, dim=75, normalized=False, distinct_cb=False):
+    def __init__(self, emb_path, cb_path):
         """
         CompressedModel initializer.
         :param emb_path: path to the embeddings file
         :param cb_path: path to the codebook
-        :param dim: compressed embedding dimension (without norms)
-        :param normalized: original size of vectors added as last dimension
-        :param distinct_cb: distinct codebook for each sub-vector position
         """
-        self.dim = dim
-        self.normalized = normalized
-        self.decode_func = self.decode_vec_distinct if distinct_cb else self.decode_vec
-
         self.cb = []
         with open(cb_path) as f:
+            header = f.readline().split()
+            self.cb_size = int(header[0])
+            self.cb_dim = int(header[1])
+
             for line in f:
                 vec = np.asarray(line.strip().split(), dtype=np.float)
                 self.cb.append(vec)
-        self.cb_dim = len(self.cb[0])
-        self.cb_size = int(len(self.cb) / dim) if distinct_cb else len(self.cb)
+        int_type = np.uint16 if self.cb_size > 256 else np.uint8
 
         self.vocab = {}
         self.sizes = {}
         self.labels = []
         self.label_vecs = []
-        int_type = np.uint16 if self.cb_size > 256 else np.uint8
         with open(emb_path) as f:
+            header = f.readline().split()
+            self.dim = int(header[1])
+            self.decode_func = self.decode_vec_distinct if 'DIST' in header else self.decode_vec
+            self.normalized = True if 'NORM' in header else False
+
             for line in f:
                 tmp = line.strip().split()
-                if normalized:
-                    w = ' '.join(tmp[:len(tmp)-dim-1])
+                if self.normalized:
+                    w = ' '.join(tmp[:len(tmp)-self.dim-1])
                     size = float(tmp.pop())
                 else:
-                    w = ' '.join(tmp[:len(tmp)-dim])
+                    w = ' '.join(tmp[:len(tmp)-self.dim])
                     size = 1
 
-                vec = np.asarray(tmp[-dim:], dtype=int_type)
+                vec = np.asarray(tmp[-self.dim:], dtype=int_type)
 
                 if w.startswith('__label__'):
                     w = w.replace('__label__', '')

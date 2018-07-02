@@ -111,11 +111,11 @@ def load_fasttext_format(path, k=None):
         vectors = vectors.reshape((num_vectors, dim))
         vectors = np.delete(vectors, 0, axis=0)
 
-        if k is not None and k < len(vocab):
-            vocab = vocab[:k]
-            vectors = vectors[:k]
+    if k is not None and k < len(vocab):
+        vocab = vocab[:k]
+        vectors = vectors[:k]
 
-        return vocab, vectors
+    return vocab, vectors
 
 
 def struct_unpack(file_handle, fmt):
