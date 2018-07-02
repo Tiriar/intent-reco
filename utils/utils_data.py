@@ -3,12 +3,38 @@
 import os
 import csv
 import struct
+import pickle
 import nltk.data
 import numpy as np
 from bs4 import BeautifulSoup
 from smart_open import smart_open
 from utils.utils import convert_numbers
 from utils.utils_sent2vec import preprocess_sentences
+from utils.embedding_wrappers import CompressedModel
+
+
+def pickle_compressed_model(model_path, cb_path, out_path):
+    """
+    Pickles a compressed embedding model (model + codebook).
+    :param model_path: path to the embedding model
+    :param cb_path: path to the codebook
+    :param out_path: path of the output pickle file
+    """
+    model = CompressedModel(model_path, cb_path)
+    data = {'vectors': model.vocab,
+            'norms': model.sizes,
+            'words': model.words,
+            'dim': model.dim,
+            'normalized': model.normalized,
+            'codebook': model.cb,
+            'codebook_size': model.cb_size,
+            'codebook_dim': model.cb_dim,
+            'distinct_codebooks': model.distinct_cb,
+            'labels': model.labels,
+            'label_vectors': model.label_vecs}
+
+    with open(out_path, 'wb') as f:
+        pickle.dump(data, f)
 
 
 def load_model_txt(path, dim=300, k=None, header=False, normalize=False):

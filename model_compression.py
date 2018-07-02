@@ -5,7 +5,7 @@ import utils.lbg as lbg
 import matplotlib.pyplot as plt
 from sys import maxsize
 from utils.utils import get_indices
-from utils.utils_data import load_sts, load_model_txt, load_model_ft_bin
+from utils.utils_data import load_sts, load_model_txt, load_model_ft_bin, pickle_compressed_model
 from utils.utils_sent2vec import preprocess_sentences
 
 
@@ -200,6 +200,7 @@ TRN_SIZE = 10000        # Maximum number of randomly picked vectors for computin
 NORMALIZE = True        # Normalize the embeddings to unit length (original size stored as additional dimension)
 DISTINCT_CB = False     # Create a distinct codebook for each sub-vector position
 NORM_PRECISION = 5      # Number of decimals to use for writing vector norms when <NORMALIZE> = True
+PICKLE = False          # Create also a pickled version of the quantized model
 
 if PRUNE and PRUNE_ONLY:
     NORMALIZE = False
@@ -213,6 +214,7 @@ if DISTINCT_CB:
 elif NORMALIZE:
     EMB_COMPRESSED += '_norm'
     EMB_COMPRESSED_CB += '_norm'
+PKL = EMB_COMPRESSED + '.pickle'
 EMB_COMPRESSED += '.txt'
 EMB_COMPRESSED_CB += '_cb.txt'
 
@@ -304,3 +306,7 @@ if __name__ == '__main__':
             header += '\n'
             file.write(header)
             file.writelines(emb_out)
+
+        if PICKLE:
+            print('Pickling...')
+            pickle_compressed_model(EMB_COMPRESSED, EMB_COMPRESSED_CB, PKL)

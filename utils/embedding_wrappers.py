@@ -10,7 +10,7 @@ Currently used algorithms:
 - StarSpace: https://github.com/facebookresearch/StarSpace
 - (TF-IDF: scikit-learn implementation)
 
-+ Compressed models: Wrapper for models compressed using 'model_compression.py' module
++ Compressed models: Wrapper for models compressed by 'model_compression.py' module
 """
 
 import numpy as np
@@ -434,9 +434,11 @@ class CompressedModel:
         self.label_vecs = []
         with open(emb_path) as f:
             header = f.readline().split()
+            self.words = int(header[0])
             self.dim = int(header[1])
-            self.decode_func = self.decode_vec_distinct if 'DIST' in header else self.decode_vec
             self.normalized = True if 'NORM' in header else False
+            self.distinct_cb = True if 'DIST' in header else False
+            self.decode_func = self.decode_vec_distinct if self.distinct_cb else self.decode_vec
 
             for line in f:
                 tmp = line.strip().split()
