@@ -507,10 +507,10 @@ class CompressedModel:
         :param vec: numpy vector
         :return: decoded numpy vector
         """
-        out = np.array([])
+        out = []
         for idx in vec:
-            out = np.concatenate((out, self.cb[idx]))
-        return out
+            out.append(self.cb[idx])
+        return np.concatenate(out)
 
     def decode_vec_distinct(self, vec):
         """
@@ -518,7 +518,7 @@ class CompressedModel:
         :param vec: numpy vector
         :return: decoded numpy vector
         """
-        out = np.array([])
+        out = []
         for i, idx in enumerate(vec):
-            out = np.concatenate((out, self.cb[i * self.cb_size + idx]))
-        return out
+            out.append(self.cb[i * self.cb_size + idx])
+        return np.concatenate(out)
