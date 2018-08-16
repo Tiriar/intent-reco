@@ -187,7 +187,7 @@ def visualize_vectors(vs):
     plt.show()
 
 
-EMBEDDINGS = 'data/torontobooks_unigrams.bin'
+EMBEDDINGS = 'data/twitter_unigrams.bin'
 
 DIM = 700               # Input embedding dimension
 LIMIT = 100000          # Use only first <LIMIT> vectors - usually highest frequency words
@@ -200,7 +200,7 @@ TRN_SIZE = 10000        # Maximum number of randomly picked vectors for computin
 NORMALIZE = True        # Normalize the embeddings to unit length (original size stored as additional dimension)
 DISTINCT_CB = False     # Create a distinct codebook for each sub-vector position
 NORM_PRECISION = 5      # Number of decimals to use for writing vector norms when <NORMALIZE> = True
-PICKLE = False          # Create also a pickled version of the quantized model
+PICKLE = True           # Create also a pickled version of the quantized model
 
 if PRUNE and PRUNE_ONLY:
     NORMALIZE = False

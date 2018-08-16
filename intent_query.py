@@ -8,8 +8,8 @@ from model_compression import split_vecs, convert_vec
 from utils.embedding_wrappers import CompressedModel
 from utils.lbg import generate_codebook
 
-EMBEDDING_PATH = 'data/starspace_C4C_2e_50k.txt'
-EMBEDDING_CB_PATH = 'data/starspace_C4C_2e_50k_cb.txt'
+EMBEDDING_PATH = 'data/my_models_compressed/twitter_200k_10sv_128cb_norm.txt'
+EMBEDDING_CB_PATH = 'data/my_models_compressed/twitter_200k_10sv_128cb_norm_cb.txt'
 TEMPLATES = 'data/templates.json'
 
 
@@ -72,7 +72,7 @@ model = CompressedModel(EMBEDDING_PATH, EMBEDDING_CB_PATH)
 print('Converting the templates...')
 templates_vec = {}
 for key in templates:
-    templates_vec[key] = model.transform(templates[key])
+    templates_vec[key] = model.transform_sentences(templates[key])
 
 print('Quantizing the templates...')
 D_SV = 2
@@ -107,7 +107,7 @@ inp = None
 while inp not in ['exit', 'stop']:
     if inp is not None:
         # pre-compute the similarity matrix
-        vec = model.transform([inp])
+        vec = model.transform_sentence(inp)
         svs = np.array(split_vecs(vec, n=D_SV))
         matrix = np.dot(codebook, svs.transpose()) / norm(vec)
 

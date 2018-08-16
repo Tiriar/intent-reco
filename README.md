@@ -5,7 +5,7 @@ This repository was created as a part of a diploma thesis. While all the include
 # intent-reco
 Template-based intent recognition system built on word embedding models.
 
-# Installation instructions:
+## Installation instructions:
 The intent recognition system is dependent on the used embedding model. These models are mostly loaded using the ```embedding_wrappers.py``` module.
 
 Currently supported embedding algorithms:
@@ -15,17 +15,16 @@ Currently supported embedding algorithms:
 * word2vec: gensim package implementation
 * FastText: https://github.com/facebookresearch/fastText or gensim package implementation
 * StarSpace: https://github.com/facebookresearch/StarSpace
-* TF-IDF: scikit-learn package implementation
 
-Depending on the embedding algorithm used, it is usually needed to install its implementation. You will find the installation instructions for each algorithm on the respective repository.
+Depending on the embedding algorithm used, it might be needed to install its implementation. You will find the installation instructions for each algorithm on the respective repository.
 
-# Model compression
+## Model compression
 
 Module ```model_compression.py``` includes functions for compressing embedding models (currently only in text format). It is able to compress the models by using different versions of vocabulary pruning and by using vector quantization.
 
 The vector quantization is based on the LBG clustering algorithm, which is implemented in module ```lbg.py```.
 
-# Intent recognition
+## Intent recognition
 
 The resulting intent recognition system is implemented in ```intent_query.py```. As of now, it loads an embedding model and a set of intent templates from a JSON file (the templates are further quantized). The user can then write sentences in the command line and the algorithm will output the matched intent, together with the respective template and its cosine similarity to the input sentence.
 

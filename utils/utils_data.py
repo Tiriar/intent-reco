@@ -6,11 +6,36 @@ import struct
 import pickle
 import nltk.data
 import numpy as np
+from tqdm import tqdm
 from bs4 import BeautifulSoup
 from smart_open import smart_open
+from fastText import load_model as ft_load
 from utils.utils import convert_numbers
 from utils.utils_sent2vec import preprocess_sentences
 from utils.embedding_wrappers import CompressedModel
+
+
+def decode_compressed_model(model_path, cb_path, out_path):
+    """
+    Decodes a compressed embedding model and writes it as a text file.
+    :param model_path: path to the embedding model
+    :param cb_path: path to the codebook
+    :param out_path: path of the output text file
+    """
+    model = CompressedModel(model_path, cb_path)
+    out = [str(model.words) + ' ' + str(model.dim * model.cb_dim) + '\n']
+
+    print('Decoding', len(model.vocab), 'words...')
+    for word in tqdm(model.vocab, mininterval=1.0):
+        tmp = word
+        vec = model.decode_func(model.vocab[word]) * model.sizes[word]
+        for num in vec:
+            tmp += ' ' + '{0:.7f}'.format(num)
+        out.append(tmp + '\n')
+
+    print('Writing output...')
+    with open(out_path, 'w') as f:
+        f.writelines(out)
 
 
 def pickle_compressed_model(model_path, cb_path, out_path):
@@ -142,6 +167,49 @@ def load_fasttext_format(path, k=None):
         vectors = vectors[:k]
 
     return vocab, vectors
+
+
+def get_ft_subwords(path):
+    """
+    Brute-forces the subword embeddings from a FastText binary model
+    and writes them to 'subwords.txt' in a word2vec format.
+    The subwords are sorted by (length, frequency).
+    :param path: path to the binary file
+    """
+    ft = ft_load(path)
+    vocab = ft.get_words()
+    vocab_len = len(vocab)
+    subwords = {}
+    sw_ids = {}
+
+    print('Processing', vocab_len, 'words...')
+    for word in tqdm(vocab, mininterval=1.0):
+        sw, ids = ft.get_subwords(word)
+        ids = ids.tolist()
+        if ids[0] < vocab_len:
+            del sw[0]
+            del ids[0]
+
+        for subword, idx in zip(sw, ids):
+            if subword not in subwords:
+                subwords[subword] = 1
+                sw_ids[subword] = idx
+            else:
+                subwords[subword] += 1
+
+    print('Computing output...')
+    sw_sorted = sorted(subwords, key=lambda x: (len(x), -subwords[x]))
+    out = [str(len(sw_sorted)) + ' ' + str(ft.get_dimension()) + '\n']
+    for sw in tqdm(sw_sorted, mininterval=1.0):
+        tmp = sw
+        vec = ft.get_input_vector(sw_ids[sw])
+        for num in vec:
+            tmp += ' ' + str(num)
+        out.append(tmp + '\n')
+
+    print('Writing output...')
+    with open('subwords.txt', 'w') as f:
+        f.writelines(out)
 
 
 def struct_unpack(file_handle, fmt):
@@ -335,7 +403,7 @@ def common_crawl_unsupervised(path, k=None, one_sent=False):
 
     samples = 0
     out = []
-    for i, el in enumerate(data):
+    for el in tqdm(data, mininterval=1.0):
         if k is not None and samples >= k:
             break
         if one_sent:
@@ -347,8 +415,6 @@ def common_crawl_unsupervised(path, k=None, one_sent=False):
         content = preprocess_sentences(content, use_pos_tagger=False)
         samples += len(content)
         out += content
-        if not (i + 1) % 1000:
-            print('Entries evaluated:', i + 1)
     for i in range(len(out)):
         out[i] += '\n'
 
