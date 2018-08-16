@@ -8,8 +8,8 @@ from model_compression import split_vecs, convert_vec
 from utils.embedding_wrappers import CompressedModel
 from utils.lbg import generate_codebook
 
-EMBEDDING_PATH = 'data/my_models_compressed/twitter_200k_10sv_128cb_norm.txt'
-EMBEDDING_CB_PATH = 'data/my_models_compressed/twitter_200k_10sv_128cb_norm_cb.txt'
+EMBEDDING_PATH = 'data/starspace_C4C_2e_50k.txt'
+EMBEDDING_CB_PATH = 'data/starspace_C4C_2e_50k_cb.txt'
 TEMPLATES = 'data/templates.json'
 
 
