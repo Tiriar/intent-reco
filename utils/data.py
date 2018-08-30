@@ -3,73 +3,25 @@
 import os
 import csv
 import struct
-import pickle
 import nltk.data
 import numpy as np
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 from smart_open import smart_open
-from fastText import load_model as ft_load
+
 from utils.utils import convert_numbers
-from utils.utils_sent2vec import preprocess_sentences
-from utils.embedding_wrappers import CompressedModel
+from utils.preprocessing import tokenize_sentences
 
 
-def decode_compressed_model(model_path, cb_path, out_path):
+def load_model_txt(path, dim=300, k=None, header=False, normalize=False, keep=None):
     """
-    Decodes a compressed embedding model and writes it as a text file.
-    :param model_path: path to the embedding model
-    :param cb_path: path to the codebook
-    :param out_path: path of the output text file
-    """
-    model = CompressedModel(model_path, cb_path)
-    out = [str(model.words) + ' ' + str(model.dim * model.cb_dim) + '\n']
-
-    print('Decoding', len(model.vocab), 'words...')
-    for word in tqdm(model.vocab, mininterval=1.0):
-        tmp = word
-        vec = model.decode_func(model.vocab[word]) * model.sizes[word]
-        for num in vec:
-            tmp += ' ' + '{0:.7f}'.format(num)
-        out.append(tmp + '\n')
-
-    print('Writing output...')
-    with open(out_path, 'w') as f:
-        f.writelines(out)
-
-
-def pickle_compressed_model(model_path, cb_path, out_path):
-    """
-    Pickles a compressed embedding model (model + codebook).
-    :param model_path: path to the embedding model
-    :param cb_path: path to the codebook
-    :param out_path: path of the output pickle file
-    """
-    model = CompressedModel(model_path, cb_path)
-    data = {'vectors': model.vocab,
-            'norms': model.sizes,
-            'words': model.words,
-            'dim': model.dim,
-            'normalized': model.normalized,
-            'codebook': model.cb,
-            'codebook_size': model.cb_size,
-            'codebook_dim': model.cb_dim,
-            'distinct_codebooks': model.distinct_cb,
-            'labels': model.labels,
-            'label_vectors': model.label_vecs}
-
-    with open(out_path, 'wb') as f:
-        pickle.dump(data, f)
-
-
-def load_model_txt(path, dim=300, k=None, header=False, normalize=False):
-    """
-    Loads the embedding vectors and their Euclidean norms into dictionaries.
+    Loads the embedding vectors and their Euclidean norms.
     :param path: path to the embeddings file
     :param dim: embedding dimension
     :param k: number of vectors to load (load all if None)
     :param header: skip header
     :param normalize: normalize the vectors to unit length
+    :param keep: set of words to keep
     :return: [vocabulary], [vectors], [vector norms]
     """
     vocab = []
@@ -84,25 +36,57 @@ def load_model_txt(path, dim=300, k=None, header=False, normalize=False):
                 vocab.append(' '.join(tmp[:len(tmp)-dim]))
                 v = np.asarray(tmp[-dim:], dtype=np.float)
                 n = np.linalg.norm(v)
-                if normalize:
-                    v /= n
-                vecs.append(v)
+                vecs.append(v/n if normalize else v)
                 vsize.append(n)
             else:
                 break
+
+        if keep and k is not None:
+            trn = [x for x in keep if x not in vocab]
+            for line in f:
+                if not trn:
+                    break
+                tmp = line.strip().split()
+                w = ' '.join(tmp[:len(tmp)-dim])
+                if w in trn:
+                    vocab.append(w)
+                    v = np.asarray(tmp[-dim:], dtype=np.float)
+                    n = np.linalg.norm(v)
+                    vecs.append(v/n if normalize else v)
+                    vsize.append(n)
+                    trn.remove(w)
+
     vecs = np.asarray(vecs)
     return vocab, vecs, vsize
 
 
-def load_model_ft_bin(path, k=None, normalize=False):
+def load_model_ft_bin(path, k=None, normalize=False, keep=None):
     """
     Loads the embedding vectors in FastText binary format.
     :param path: path to the embeddings file
     :param k: number of vectors to load (load all if None)
     :param normalize: normalize the vectors to unit length
+    :param keep: set of words to keep
     :return: [vocabulary], [vectors], [vector norms]
     """
-    vocab, vecs = load_fasttext_format(path, k=k)
+    vocab, vecs = load_fasttext_format(path)
+    if k is not None and k < len(vocab):
+        vocab_tmp = vocab[:k]
+        vecs_tmp = vecs[:k]
+        if keep:
+            trn = [x for x in keep if x not in vocab_tmp]
+            for i, w in enumerate(vocab[k:]):
+                if not trn:
+                    break
+                if w in trn:
+                    vocab_tmp.append(w)
+                    v = vecs[i]
+                    n = np.linalg.norm(v)
+                    vecs_tmp = np.vstack((vecs_tmp, v/n if normalize else v))
+                    trn.remove(w)
+        vocab = vocab_tmp
+        vecs = vecs_tmp
+
     vsize = []
     for i, v in enumerate(vecs):
         n = np.linalg.norm(v)
@@ -112,11 +96,10 @@ def load_model_ft_bin(path, k=None, normalize=False):
     return vocab, vecs, vsize
 
 
-def load_fasttext_format(path, k=None):
+def load_fasttext_format(path):
     """
     Loads a FastText-format binary file.
     :param path: path to the binary file
-    :param k: number of vectors to keep (still needs to load all)
     :return: [vocabulary], [vectors]
     """
     with smart_open(path, 'rb') as f:
@@ -162,54 +145,7 @@ def load_fasttext_format(path, k=None):
         vectors = vectors.reshape((num_vectors, dim))
         vectors = np.delete(vectors, 0, axis=0)
 
-    if k is not None and k < len(vocab):
-        vocab = vocab[:k]
-        vectors = vectors[:k]
-
     return vocab, vectors
-
-
-def get_ft_subwords(path):
-    """
-    Brute-forces the subword embeddings from a FastText binary model
-    and writes them to 'subwords.txt' in a word2vec format.
-    The subwords are sorted by (length, frequency).
-    :param path: path to the binary file
-    """
-    ft = ft_load(path)
-    vocab = ft.get_words()
-    vocab_len = len(vocab)
-    subwords = {}
-    sw_ids = {}
-
-    print('Processing', vocab_len, 'words...')
-    for word in tqdm(vocab, mininterval=1.0):
-        sw, ids = ft.get_subwords(word)
-        ids = ids.tolist()
-        if ids[0] < vocab_len:
-            del sw[0]
-            del ids[0]
-
-        for subword, idx in zip(sw, ids):
-            if subword not in subwords:
-                subwords[subword] = 1
-                sw_ids[subword] = idx
-            else:
-                subwords[subword] += 1
-
-    print('Computing output...')
-    sw_sorted = sorted(subwords, key=lambda x: (len(x), -subwords[x]))
-    out = [str(len(sw_sorted)) + ' ' + str(ft.get_dimension()) + '\n']
-    for sw in tqdm(sw_sorted, mininterval=1.0):
-        tmp = sw
-        vec = ft.get_input_vector(sw_ids[sw])
-        for num in vec:
-            tmp += ' ' + str(num)
-        out.append(tmp + '\n')
-
-    print('Writing output...')
-    with open('subwords.txt', 'w') as f:
-        f.writelines(out)
 
 
 def struct_unpack(file_handle, fmt):
@@ -270,8 +206,8 @@ def sts_starspace(path, mode='train'):
     """
     assert mode in ['train', 'dev', 'test']
     data = load_sts(os.path.join(path, 'sts-{}.csv'.format(mode)), lower=True)
-    x1 = preprocess_sentences(data['X1'])
-    x2 = preprocess_sentences(data['X2'])
+    x1 = tokenize_sentences(data['X1'])
+    x2 = tokenize_sentences(data['X2'])
 
     out = []
     for s1, s2, y in zip(x1, x2, data['y']):
@@ -295,7 +231,7 @@ def sts_unsupervised(path, preprocess=False):
 
     tmp = os.path.split(path)
     if preprocess:
-        sentences = preprocess_sentences(sentences, use_pos_tagger=False)
+        sentences = tokenize_sentences(sentences)
         opath = os.path.join(tmp[0], 'unsupervised_training', os.path.splitext(tmp[1])[0] + '-prep.txt')
     else:
         opath = os.path.join(tmp[0], 'unsupervised_training', os.path.splitext(tmp[1])[0] + '.txt')
@@ -315,7 +251,7 @@ def alquist_starspace(path):
     data = load_alquist(path)
     sentences = data['X']
     intents = data['y']
-    sentences = preprocess_sentences(sentences, use_pos_tagger=False)
+    sentences = tokenize_sentences(sentences)
 
     out = []
     for s, i in zip(sentences, intents):
@@ -338,7 +274,7 @@ def alquist_unsupervised(path, preprocess=False):
 
     tmp = os.path.split(path)
     if preprocess:
-        sentences = preprocess_sentences(sentences, use_pos_tagger=False)
+        sentences = tokenize_sentences(sentences)
         opath = os.path.join(tmp[0], 'unsupervised_training', os.path.splitext(tmp[1])[0] + '-prep.txt')
     else:
         opath = os.path.join(tmp[0], 'unsupervised_training', os.path.splitext(tmp[1])[0] + '.txt')
@@ -412,7 +348,7 @@ def common_crawl_unsupervised(path, k=None, one_sent=False):
                 content += tokenizer.tokenize(entry)
         else:
             content = el[1]
-        content = preprocess_sentences(content, use_pos_tagger=False)
+        content = tokenize_sentences(content)
         samples += len(content)
         out += content
     for i in range(len(out)):

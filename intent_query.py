@@ -5,7 +5,7 @@ import numpy as np
 from numpy.linalg import norm
 
 from model_compression import split_vecs, convert_vec
-from utils.embedding_wrappers import CompressedModel
+from embeddings.compressed import CompressedModel
 from utils.lbg import generate_codebook
 
 EMBEDDING_PATH = 'data/starspace_C4C_2e_50k.txt'
@@ -108,7 +108,7 @@ while inp not in ['exit', 'stop']:
     if inp is not None:
         # pre-compute the similarity matrix
         vec = model.transform_sentence(inp)
-        svs = np.array(split_vecs(vec, n=D_SV))
+        svs = np.array(split_vecs([vec], n=D_SV))
         matrix = np.dot(codebook, svs.transpose()) / norm(vec)
 
         # find the intent

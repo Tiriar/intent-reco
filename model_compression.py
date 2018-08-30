@@ -1,12 +1,16 @@
 """Module for compressing the embedding models."""
 
+import argparse
 import numpy as np
-import utils.lbg as lbg
 import matplotlib.pyplot as plt
 from sys import maxsize
+# from sklearn.decomposition import PCA
+
+from utils.lbg import generate_codebook
 from utils.utils import get_indices
-from utils.utils_data import load_sts, load_model_txt, load_model_ft_bin, pickle_compressed_model
-from utils.utils_sent2vec import preprocess_sentences
+from utils.data import load_sts, load_model_txt, load_model_ft_bin
+from utils.preprocessing import tokenize_sentences
+from embeddings.compressed import pickle_compressed_model
 
 
 def chunks(l, n):
@@ -32,7 +36,6 @@ def split_vecs(d, n=4, limit=None):
         elems = d[np.random.choice(d.shape[0], limit, replace=False), :]
     else:
         elems = d
-    # visualize_vectors(elems)
     vectors = []
     for v in elems:
         vectors += list(chunks(v, n))
@@ -146,6 +149,7 @@ def prune_by_norm(words, vectors, vsize, trn=None, keep=10000):
             words_out.append(w)
             vectors_out.append(vectors[i])
             vsize_out.append(vsize[i])
+    vectors_out = np.asarray(vectors_out)
 
     return words_out, vectors_out, vsize_out
 
@@ -187,126 +191,168 @@ def visualize_vectors(vs):
     plt.show()
 
 
-EMBEDDINGS = 'data/twitter_unigrams.bin'
+def codebook_to_strings(codebook, out_list):
+    """
+    Converts codebook to a representation writable to a text file.
+    :param codebook: input codebook
+    :param out_list: list in which the output is stored
+    """
+    for code in codebook:
+        tmp = ''
+        for n in code:
+            tmp += str(n) + ' '
+        out_list.append(tmp.rstrip() + '\n')
 
-DIM = 700               # Input embedding dimension
-LIMIT = 100000          # Use only first <LIMIT> vectors - usually highest frequency words
-PRUNE = False           # Prune the vocabulary using embedding norms
-PRUNE_ONLY = True       # Only prune the vocabulary without quantization (when <PRUNE> = True)
-PRUNE_KEEP = 20000      # Number of words to keep when pruning (K)
-D_SV = 10               # Size of sub-vectors the embedding vectors are split into
-D_CB = 128              # Codebook size
-TRN_SIZE = 10000        # Maximum number of randomly picked vectors for computing the codebook
-NORMALIZE = True        # Normalize the embeddings to unit length (original size stored as additional dimension)
-DISTINCT_CB = False     # Create a distinct codebook for each sub-vector position
-NORM_PRECISION = 5      # Number of decimals to use for writing vector norms when <NORMALIZE> = True
-PICKLE = True           # Create also a pickled version of the quantized model
 
-if PRUNE and PRUNE_ONLY:
-    NORMALIZE = False
+parser = argparse.ArgumentParser(description='Embedding model compression')
 
-EMB_PRUNED = 'model_pruned_' + str(PRUNE_KEEP) + '.txt'
-EMB_COMPRESSED = 'model_' + str(D_SV) + 'sv_' + str(D_CB) + 'cb'
-EMB_COMPRESSED_CB = 'model_' + str(D_SV) + 'sv_' + str(D_CB) + 'cb'
-if DISTINCT_CB:
-    EMB_COMPRESSED += '_dist'
-    EMB_COMPRESSED_CB += '_dist'
-elif NORMALIZE:
-    EMB_COMPRESSED += '_norm'
-    EMB_COMPRESSED_CB += '_norm'
-PKL = EMB_COMPRESSED + '.pickle'
-EMB_COMPRESSED += '.txt'
-EMB_COMPRESSED_CB += '_cb.txt'
+# data
+parser.add_argument('--emb_path', type=str, metavar='<STRING>', default='data/twitter_unigrams.bin',
+                    help='path to the embedding model')
+parser.add_argument('--emb_dim', type=int, metavar='<INT>', default=700,
+                    help='input embedding dimension [700]')
 
-# TODO: Quantize also the vector sizes after normalization?
+# pruning
+parser.add_argument('--prune_freq', type=int, metavar='<INT>', default=None,
+                    help='number of words to keep after pruning by vector frequency [no pruning]')
+parser.add_argument('--prune_norm', type=int, metavar='<INT>', default=None,
+                    help='number of words to keep after pruning by vector norm [no pruning]')
+parser.add_argument('-t', '--trn_keep', action='store_true',
+                    help='keep words present in a training set')
+parser.add_argument('--trn_path', type=str, metavar='<STRING>',
+                    default='data/stsbenchmark/unsupervised_training/sts-train-prep.txt',
+                    help='path to the training file (tokenized plain text) used for <trn_keep>')
+
+# dimensionality reduction
+parser.add_argument('-r', '--reduce_dim', action='store_true',
+                    help='apply dimensionality reduction')
+parser.add_argument('--dim', type=int, metavar='<INT>', default=100,
+                    help='embedding dimension after dimensionality reduction [100]')
+
+# quantization
+parser.add_argument('-q', '--quantize', action='store_true',
+                    help='use vector quantization')
+parser.add_argument('-n', '--normalize', action='store_true',
+                    help='normalize the vectors to unit length before quantization '
+                         '(original norm stored in the compressed model)')
+parser.add_argument('-d', '--distinct', action='store_true',
+                    help='create a distinct codebook for each sub-vector dimension')
+parser.add_argument('--d_sv', type=int, metavar='<INT>', default=10,
+                    help='size of sub-vectors the embeddings are split into [10]')
+parser.add_argument('--d_cb', type=int, metavar='<INT>', default=128,
+                    help='codebook size [128]')
+parser.add_argument('--qnt_trn', type=int, metavar='<INT>', default=10000,
+                    help='maximum number of randomly picked vectors for computing the codebook [10000]')
+
+# output
+parser.add_argument('--out_name', type=str, metavar='<STRING>', default='model_compressed',
+                    help='name of the output model (without extension) [\'model_compressed\']')
+parser.add_argument('-p', '--pickle', action='store_true',
+                    help='create also a pickled version of the quantized model')
+parser.add_argument('--precision', type=int, metavar='<INT>', default=5,
+                    help='maximum number of decimals used in the output model [5]')
+
+params = parser.parse_args()
+print('Parsed arguments:\n', params, end='\n\n')
+if not params.quantize:
+    params.normalize = False
+    params.distinct = False
+if params.dim > params.emb_dim:
+    params.reduce_dim = False
+
+OUT = params.out_name + '.txt'
+OUT_CB = params.out_name + '_cb.txt'
+OUT_PKL = params.out_name + '.pickle'
+prec = params.precision
+
 if __name__ == '__main__':
-    print('Loading data...')
-    if EMBEDDINGS.endswith('.bin'):
-        vocab, vecs, sizes = load_model_ft_bin(EMBEDDINGS, k=LIMIT, normalize=NORMALIZE)
+    if params.trn_keep:
+        trn_words = []
+        with open(params.trn_path) as f:
+            for line in f:
+                trn_words += line.strip().split()
+        trn_words = set(trn_words)
     else:
-        vocab, vecs, sizes = load_model_txt(EMBEDDINGS, dim=DIM, k=LIMIT, header=True, normalize=NORMALIZE)
+        trn_words = None
 
-    if PRUNE:
-        print('Pruning vocabulary...')
+    print('Loading data (+ pruning vocabulary by frequency)...')
+    if params.emb_path.endswith('.bin'):
+        vocab, vecs, sizes = load_model_ft_bin(params.emb_path, k=params.prune_freq, normalize=params.normalize,
+                                               keep=trn_words)
+    else:
+        vocab, vecs, sizes = load_model_txt(params.emb_path, k=params.prune_freq, normalize=params.normalize,
+                                            dim=params.emb_dim, header=True, keep=trn_words)
+
+    if params.prune_norm:
+        # TODO: Possibility to prune by any training set, not just STS.
+        print('Pruning vocabulary by norm...')
         sts = load_sts('data/stsbenchmark/sts-train.csv')
-        sts = preprocess_sentences(sts['X1'] + sts['X2'], use_pos_tagger=False)
-        vocab, vecs, sizes = prune_by_norm(vocab, vecs, sizes, trn=sts, keep=PRUNE_KEEP)
-        # vocab, vecs, sizes = prune_by_trn(vocab, vecs, sizes, sts)
+        sts = tokenize_sentences(sts['X1'] + sts['X2'], to_lower=True)
+        vocab, vecs, sizes = prune_by_norm(vocab, vecs, sizes, trn=sts, keep=params.prune_norm)
+        # vocab, vecs, sizes = prune_by_trn(vocab, vecs, sizes, trn=sts)
         print('- pruned vocabulary size:', len(vocab))
 
-        if PRUNE_ONLY:
-            print('Writing pruned embeddings...')
-            emb_out = []
-            for idx, word in enumerate(vocab):
-                s = word
-                for num in vecs[idx]:
-                    s += ' ' + str(num)
-                emb_out.append(s + '\n')
+    if params.reduce_dim:
+        print('Reducing dimension...')
+        params.emb_dim = params.dim
+        # pca = PCA(n_components=params.dim, copy=False)
+        # vecs = pca.fit_transform(vecs)
+        vecs = vecs[:, :params.dim]
 
-            with open(EMB_PRUNED, 'w+', encoding='utf-8') as file:
-                file.write(str(len(vocab)) + ' ' + str(DIM) + '\n')
-                file.writelines(emb_out)
-
-    if not PRUNE or not PRUNE_ONLY:
-        if DISTINCT_CB:
-            print('Computing codebook...')
-            lbg_data = split_vecs_distinct(vecs, n=D_SV, limit=TRN_SIZE)
+    if params.quantize:
+        # TODO: Quantize also the vector sizes after normalization?
+        print('Computing codebook...')
+        cb_out = []
+        if params.distinct:
+            lbg_data = split_vecs_distinct(vecs, n=params.d_sv, limit=params.qnt_trn)
             cb = {}
             for pos in lbg_data:
                 print('--- position:', pos, '---')
-                cb[pos] = lbg.generate_codebook(lbg_data[pos], cb_size=D_CB)[0]
-
-            cb_out = []
+                cb[pos] = generate_codebook(lbg_data[pos], cb_size=params.d_cb)[0]
             for pos in cb:
-                for c in cb[pos]:
-                    s = ''
-                    for num in c:
-                        s += str(num) + ' '
-                    cb_out.append(s.strip() + '\n')
-
+                codebook_to_strings(cb[pos].round(prec), cb_out)
         else:
-            print('Computing codebook...')
-            lbg_data = split_vecs(vecs, n=D_SV, limit=TRN_SIZE)
-            cb, cb_abs_w, cb_rel_w = lbg.generate_codebook(lbg_data, cb_size=D_CB)
-            print('centroid weights:', cb_rel_w)
-
-            cb_out = []
-            for c in cb:
-                s = ''
-                for num in c:
-                    s += str(num) + ' '
-                cb_out.append(s.strip() + '\n')
+            lbg_data = split_vecs(vecs, n=params.d_sv, limit=params.qnt_trn)
+            cb = generate_codebook(lbg_data, cb_size=params.d_cb)[0]
+            codebook_to_strings(cb.round(prec), cb_out)
 
         print('Writing codebook...')
-        with open(EMB_COMPRESSED_CB, 'w+', encoding='utf-8') as file:
-            header = str(D_CB) + ' ' + str(D_SV) + '\n'
+        with open(OUT_CB, 'w', encoding='utf-8') as file:
+            header = str(params.d_cb) + ' ' + str(params.d_sv) + '\n'
             file.write(header)
             file.writelines(cb_out)
 
-        print('Computing compressed embeddings...')
-        prec = '{0:.' + str(NORM_PRECISION) + 'f}'
-        convert_func = convert_vec_distinct if DISTINCT_CB else convert_vec
-        emb_out = []
-        for idx, word in enumerate(vocab):
-            s = word
-            vec = convert_func(vecs[idx], D_SV, cb)
-            for num in vec:
-                s += ' ' + str(num)
-            if NORMALIZE:
-                s += ' ' + prec.format(sizes[idx])
-            emb_out.append(s + '\n')
+        print('Quantizing vectors...')
+        convert_func = convert_vec_distinct if params.distinct else convert_vec
+        vecs_quantized = []
+        for vec in vecs:
+            vecs_quantized.append(convert_func(vec, params.d_sv, cb))
+        vecs = np.asarray(vecs_quantized)
 
-        print('Writing compressed embeddings...')
-        with open(EMB_COMPRESSED, 'w+', encoding='utf-8') as file:
-            header = str(len(emb_out)) + ' ' + str(int(DIM/D_SV))
-            if NORMALIZE:
-                header += ' NORM'
-            if DISTINCT_CB:
-                header += ' DIST'
-            header += '\n'
-            file.write(header)
-            file.writelines(emb_out)
+    print('Preparing compressed model...')
+    emb_out = []
+    if not params.quantize:
+        vecs = vecs.round(prec)
+    for idx, word in enumerate(vocab):
+        s = word
+        for num in vecs[idx]:
+            s += ' ' + str(num)
+        if params.normalize:
+            s += ' ' + str(round(sizes[idx], prec))
+        emb_out.append(s + '\n')
 
-        if PICKLE:
-            print('Pickling...')
-            pickle_compressed_model(EMB_COMPRESSED, EMB_COMPRESSED_CB, PKL)
+    print('Writing compressed model...')
+    dim = int(params.emb_dim/params.d_sv) if params.quantize else params.emb_dim
+    with open(OUT, 'w', encoding='utf-8') as file:
+        header = str(len(emb_out)) + ' ' + str(dim)
+        if params.normalize:
+            header += ' NORM'
+        if params.distinct:
+            header += ' DIST'
+        header += '\n'
+        file.write(header)
+        file.writelines(emb_out)
+
+    if params.pickle and params.quantize:
+        print('Pickling...')
+        pickle_compressed_model(OUT, OUT_CB, OUT_PKL)

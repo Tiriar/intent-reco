@@ -6,7 +6,7 @@ This repository was created as a part of a diploma thesis. While all the include
 Template-based intent recognition system built on word embedding models.
 
 ## Installation instructions:
-The intent recognition system is dependent on the used embedding model. These models are mostly loaded using the ```embedding_wrappers.py``` module.
+The intent recognition system is dependent on the used embedding model. These models are loaded using the wrappers in  ```embeddings``` directory.
 
 Currently supported embedding algorithms:
 * InferSent: https://github.com/facebookresearch/InferSent
@@ -20,7 +20,7 @@ Depending on the embedding algorithm used, it might be needed to install its imp
 
 ## Model compression
 
-Module ```model_compression.py``` includes functions for compressing embedding models (currently only in text format). It is able to compress the models by using different versions of vocabulary pruning and by using vector quantization.
+Module ```model_compression.py``` includes functions for compressing embedding models. It is able to compress the models by using different versions of vocabulary pruning and by using vector quantization.
 
 The vector quantization is based on the LBG clustering algorithm, which is implemented in module ```lbg.py```.
 
