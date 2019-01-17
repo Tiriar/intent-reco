@@ -1,6 +1,8 @@
-!!! UNDER CONSTRUCTION !!!
-
-This repository was created as a part of a diploma thesis. While all the included code works and is well documented, as of now, it might be hard for anyone to actually use it, but feel free to try. It is my intention to convert it into a proper Python library in the future.
+This repository was created as a part of a diploma thesis 
+[Semantic Sentence Similarity for Intent Recognition Task](https://dspace.cvut.cz/bitstream/handle/10467/77029/F3-DP-2018-Brich-Tomas-Semantic_Sentence_Similarity_for_Intent_Recognition_Task.pdf?sequence=-1&isAllowed=y).
+ While all the included code works and is well documented, as of now, 
+ it might be hard for anyone to actually use it, but feel free to try. 
+ It is my intention to convert it into a proper Python library in the future.
 
 # intent-reco
 Template-based intent recognition system built on word embedding models.
