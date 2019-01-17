@@ -1,0 +1,4 @@
+include README.md
+include data/starspace_C4C_2e_50k.txt
+include data/starspace_C4C_2e_50k_cb.txt
+include data/templates.json

@@ -4,9 +4,9 @@ import json
 import numpy as np
 from numpy.linalg import norm
 
-from model_compression import split_vecs, convert_vec
-from embeddings.compressed import CompressedModel
-from utils.lbg import generate_codebook
+from intent_reco.model_compression import split_vecs, convert_vec
+from intent_reco.embeddings.compressed import CompressedModel
+from intent_reco.utils.lbg import generate_codebook
 
 EMBEDDING_PATH = 'data/starspace_C4C_2e_50k.txt'
 EMBEDDING_CB_PATH = 'data/starspace_C4C_2e_50k_cb.txt'

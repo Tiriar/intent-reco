@@ -1,6 +1,6 @@
 import torch
 
-import embeddings.infersent_models as im
+import intent_reco.embeddings.infersent_models as im
 
 
 class InferSent:

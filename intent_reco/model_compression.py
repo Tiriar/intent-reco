@@ -6,11 +6,11 @@ import matplotlib.pyplot as plt
 from sys import maxsize
 # from sklearn.decomposition import PCA
 
-from utils.lbg import generate_codebook
-from utils.utils import get_indices
-from utils.data import load_sts, load_model_txt, load_model_ft_bin
-from utils.preprocessing import tokenize_sentences
-from embeddings.compressed import pickle_compressed_model
+from intent_reco.utils.lbg import generate_codebook
+from intent_reco.utils.utils import get_indices
+from intent_reco.utils.data import load_sts, load_model_txt, load_model_ft_bin
+from intent_reco.utils.preprocessing import tokenize_sentences
+from intent_reco.embeddings.compressed import pickle_compressed_model
 
 
 def chunks(l, n):

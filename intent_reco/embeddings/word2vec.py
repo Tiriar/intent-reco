@@ -1,7 +1,7 @@
 from gensim.models import Word2Vec, KeyedVectors
 from nltk.stem.snowball import SnowballStemmer
 
-from embeddings.base import EmbeddingModelBase
+from intent_reco.embeddings.base import EmbeddingModelBase
 
 
 class WordEmbedding(EmbeddingModelBase):
