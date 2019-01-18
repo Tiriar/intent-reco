@@ -1,6 +1,6 @@
 import sent2vec
 
-from utils.preprocessing import tokenize_sentences
+from intent_reco.utils.preprocessing import tokenize_sentences
 
 
 class Sent2Vec:

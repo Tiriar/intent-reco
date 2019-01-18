@@ -8,7 +8,29 @@ This repository was created as a part of a diploma thesis
 Template-based intent recognition system built on word embedding models.
 
 ## Installation instructions:
-The intent recognition system is dependent on the used embedding model. These models are loaded using the wrappers in  ```embeddings``` directory.
+
+## Prerequisites:
+Install Python 3.6 and higher
+```commandline
+sudo python3 python3-pip python3-dev build-essential
+```
+Install Python package manager `pipenv`
+```commandline
+pip3 install --user pipenv
+```
+
+Create and enter the virtual environment
+```commandline
+pipenv shell
+```
+
+Install dependencies (including development):
+```commandline
+pipenv install --dev
+```
+
+The intent recognition system is dependent on the used embedding model. 
+These models are loaded using the wrappers in  ```embeddings``` directory.
 
 Currently supported embedding algorithms:
 * InferSent: https://github.com/facebookresearch/InferSent

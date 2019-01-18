@@ -2,7 +2,7 @@ import numpy as np
 import spacy
 from glove import Glove
 
-from embeddings.base import EmbeddingModelBase
+from intent_reco.embeddings.base import EmbeddingModelBase
 
 
 class GloVe(EmbeddingModelBase):

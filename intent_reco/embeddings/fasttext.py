@@ -1,7 +1,7 @@
 import fastText
 
-from embeddings.base import EmbeddingModelBase
-from utils.preprocessing import tokenize_sentences
+from intent_reco.embeddings.base import EmbeddingModelBase
+from intent_reco.utils.preprocessing import tokenize_sentences
 
 
 class FastText(EmbeddingModelBase):

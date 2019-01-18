@@ -9,8 +9,8 @@ from tqdm import tqdm
 from bs4 import BeautifulSoup
 from smart_open import smart_open
 
-from utils.utils import convert_numbers
-from utils.preprocessing import tokenize_sentences
+from intent_reco.utils.utils import convert_numbers
+from intent_reco.utils.preprocessing import tokenize_sentences
 
 
 def load_model_txt(path, dim=300, k=None, header=False, normalize=False, keep=None):

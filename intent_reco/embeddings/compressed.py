@@ -2,7 +2,7 @@ import numpy as np
 import pickle
 from sklearn.metrics.pairwise import cosine_similarity
 
-from embeddings.base import EmbeddingModelBase
+from intent_reco.embeddings.base import EmbeddingModelBase
 
 
 class CompressedModel(EmbeddingModelBase):

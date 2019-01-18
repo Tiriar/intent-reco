@@ -1,7 +1,7 @@
 import numpy as np
 from nltk import TweetTokenizer
 
-from utils.preprocessing import tokenize
+from intent_reco.utils.preprocessing import tokenize
 
 
 class EmbeddingModelBase:
