@@ -8,14 +8,12 @@ python_version = "3.6"
 
 [packages]
 bs4 = "*"
+matplotlib = "*"
 nltk = "*"
 numpy = "*"
-matplotlib = "*"
-tqdm = "*"
-smart_open = "*"
 scikit-learn = "*"
 scipy = "*"
-
+smart_open = "*"
+tqdm = "*"
 
 [dev-packages]
-
