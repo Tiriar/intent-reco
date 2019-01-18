@@ -2,7 +2,7 @@
 
 import argparse
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from sys import maxsize
 # from sklearn.decomposition import PCA
 
@@ -180,15 +180,15 @@ def prune_by_trn(words, vectors, vsize, trn):
     return words_out, vectors_out, vsize_out
 
 
-def visualize_vectors(vs):
-    """
-    Plots vectors in <vs>.
-    :param vs: input vectors
-    """
-    plt.figure()
-    for v in vs:
-        plt.plot([0, v[0]], [0, v[1]])
-    plt.show()
+# def visualize_vectors(vs):
+#     """
+#     Plots vectors in <vs>.
+#     :param vs: input vectors
+#     """
+#     plt.figure()
+#     for v in vs:
+#         plt.plot([0, v[0]], [0, v[1]])
+#     plt.show()
 
 
 def codebook_to_strings(codebook, out_list):
