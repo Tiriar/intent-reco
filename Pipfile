@@ -17,3 +17,6 @@ smart_open = "*"
 tqdm = "*"
 
 [dev-packages]
+#keras = "*"
+#torch = "*"
+#torchvision = "*"

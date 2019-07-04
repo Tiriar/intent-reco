@@ -13,6 +13,35 @@ from intent_reco.utils.utils import convert_numbers
 from intent_reco.utils.preprocessing import tokenize_sentences
 
 
+def txt_to_tsv(inp, labels=None):
+    """
+    Convert text model file to a tsv used by StarSpace.
+    :param inp: input text model file
+    :param labels: list of label names to add as vectors
+    """
+    with open(inp) as f:
+        lines = f.readlines()
+    header = lines[0].split()
+    dim = int(header[1])
+    del lines[0]
+
+    out = []
+    for line in lines:
+        tmp = line.strip().split()
+        w = ' '.join(tmp[:len(tmp)-dim])
+        vec = '\t'.join(tmp[-dim:])
+        out.append(w + '\t' + vec + '\n')
+
+    if labels:
+        for l in labels:
+            vec = np.random.rand(dim).astype(np.str).tolist()
+            vec = '\t'.join(vec)
+            out.append('__label__' + str(l) + '\t' + vec + '\n')
+
+    with open('model.tsv', 'w') as f:
+        f.writelines(out)
+
+
 def load_model_txt(path, dim=300, k=None, header=False, normalize=False, keep=None):
     """
     Loads the embedding vectors and their Euclidean norms.

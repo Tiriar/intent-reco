@@ -4,5 +4,7 @@ __pycache__/
 
 # data folder
 data/*
+!data/stsbenchmark/
+!data/stanford-postagger.jar
 !data/starspace_C4C_2e_50k*
 !data/templates.json

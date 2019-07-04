@@ -1,0 +1,374 @@
+======USED PRE-TRAINED EMBEDDING MODELS======
+algorithm           |   training corpus         |   size    |   dim     |   corpus #t   |   vocab   |
+-----------------------------------------------------------------------------------------------------
+InferSent           |   SNLI                    |   154MB   |   4096    |   ----        |   ----    |
+                    |   + GloVe Common Crawl    |   + 5.6GB |   300     |   840B        |   2.2M    |
+Sent2Vec unigram    |   Twitter                 |   13GB    |   700     |   19.7B       |   cca 1M  |
+                    |   Wikipedia               |   4.8GB   |   600     |   1.7B        |   ----    |
+                    |   Toronto Books           |   1.7GB   |   700     |   0.9B        |   ----    |
+Sent2Vec bigram     |   Twitter                 |   23GB    |   700     |   19.7B       |   ----    |
+                    |   Wikipedia               |   16GB    |   700     |   1.7B        |   ----    |
+                    |   Toronto Books           |   6.8GB   |   700     |   0.9B        |   ----    |
+Word2Vec SG         |   Google News (part)      |   3.6GB   |   300     |   ----        |   3M      |
+FastText CBOW       |   Wikipedia               |   8.5GB   |   300     |   ----        |   2.5M    |
+GloVe               |   Wiki2014 + Gigaword5    |   1GB     |   300     |   6B          |   400k    |
+
+======RESULTS (on the STS Benchmark test set)======
+algorithm           |   model                   |   Spearman    |   Pearson |   STS Pearson |
+---------------------------------------------------------------------------------------------
+InferSent           |   SNLI + GloVe vectors    |   0.685       |   0.710   |   -----       |
++ regression on STS |   SNLI + GloVe vectors    |   0.755       |   0.758   |   0.758       |
+Sent2Vec unigram    |   Twitter                 |   0.728       |   0.755   |   0.755       |
+                    |   Wikipedia               |   0.640       |   0.638   |   -----       |
+                    |   Toronto Books           |   0.704       |   0.726   |   -----       |
+Sent2Vec bigram     |   Toronto Books           |   0.690       |   0.716   |   -----       |
+Word2Vec SG         |   Google News (part)      |   0.579       |   0.622   |   0.565       |
+FastText CBOW       |   Wikipedia               |   0.582       |   0.584   |   0.536       |
+                    |   Wikipedia (first 200k)  |   0.578       |   0.582   |   -----       |
+FastText CBOW OOV   |   Wikipedia               |   0.539       |   0.483   |   -----       |
+GloVe               |   Wiki2014 + Gigaword5    |   0.438       |   0.408   |   0.406       |
+
+======RESULTS (on the STS Benchmark test set) - MY TRAINED MODELS======
+algorithm           |   training corpus     |   settings        |   Spearman    |   Pearson |   CPU time    |
+-------------------------------------------------------------------------------------------------------------
+Sent2Vec unigram    |   sts-train-prep      |   300d 16e 5n     |   0.100       |   0.094   |      0m35s    |
+                    |   sts-train-prep      |   300d 64e 5n     |   0.235       |   0.238   |      1m22s    |
+                    |   sts-train-prep      |   300d 128e 5n    |   0.301       |   0.303   |      2m24s    |
+                    |   sts-train-prep      |   300d 512e 5n    |   0.398       |   0.401   |      8m40s    |
+                    |   sts-train-prep      |   300d 1024e 5n   |   0.431       |   0.448   |     17m36s    |
+                    |   sts-train-prep      |   300d 2048e 5n   |   0.452       |   0.470   |     33m33s    |
+                    |   sts-train-prep      |   300d 4096e 5n   |   0.473       |   0.478   |     70m54s    |
+StarSpace           |   sts-train-prep      |   300d 1e 5n      |   0.506       |   0.534   |      1m48s    |
+                    |   sts-train-prep      |   300d 2e 5n      |   0.546       |   0.584   |      3m20s    |
+                    |   sts-train-prep      |   300d 8e 5n      |   0.580       |   0.612   |     12m30s    |
+                    |   sts-train-prep      |   300d 16e 5n     |   0.592       |   0.623   |     24m41s    |
+                    |   sts-train-prep      |   300d 32e 5n     |   0.604       |   0.632   |     46m58s    |
+                    |   sts-train-prep      |   300d 64e 5n     |   0.602       |   0.632   |     95m41s    |
+FastText SG OOV     |   sts-train-prep      |   300d 16e 5n     |   0.339       |   0.320   |      2m02s    |
+                    |   sts-train-prep      |   300d 64e 5n     |   0.552       |   0.543   |      6m47s    |
+                    |   sts-train-prep      |   300d 128e 5n    |   0.580       |   0.576   |     12m49s    |
+                    |   sts-train-prep      |   300d 512e 5n    |   0.597       |   0.594   |     50m01s    |
+                    |   sts-train-prep      |   300d 1024e 5n   |   0.601       |   0.599   |     99m19s    |
+FastText SG         |   sts-train-prep      |   300d 16e 5n     |   0.323       |   0.298   |      2m02s    |
+                    |   sts-train-prep      |   300d 64e 5n     |   0.529       |   0.511   |      6m47s    |
+                    |   sts-train-prep      |   300d 128e 5n    |   0.558       |   0.548   |     12m49s    |
+                    |   sts-train-prep      |   300d 512e 5n    |   0.576       |   0.568   |     50m01s    |
+                    |   sts-train-prep      |   300d 1024e 5n   |   0.580       |   0.572   |     99m19s    |
+Word2Vec SG HS      |   sts-train-prep      |   300d 16e hs     |   0.364       |   0.343   |      0m42s    |
+                    |   sts-train-prep      |   300d 64e hs     |   0.508       |   0.509   |      2m40s    |
+                    |   sts-train-prep      |   300d 128e hs    |   0.540       |   0.548   |      5m17s    |
+                    |   sts-train-prep      |   300d 512e hs    |   0.579       |   0.594   |     21m01s    |
+                    |   sts-train-prep      |   300d 1024e hs   |   0.587       |   0.605   |     42m41s    |
+                    |   sts-train-prep      |   300d 2048e hs   |   0.589       |   0.610   |     82m38s    |
+Word2Vec SG         |   sts-train-prep      |   300d 16e 5n     |   0.205       |   0.163   |      0m39s    |
+                    |   sts-train-prep      |   300d 64e 5n     |   0.412       |   0.385   |      2m24s    |
+                    |   sts-train-prep      |   300d 128e 5n    |   0.475       |   0.450   |      4m23s    |
+                    |   sts-train-prep      |   300d 512e 5n    |   0.533       |   0.518   |     15m46s    |
+                    |   sts-train-prep      |   300d 1024e 5n   |   0.552       |   0.542   |     30m37s    |
+                    |   sts-train-prep      |   300d 2048e 5n   |   0.566       |   0.560   |     58m54s    |
+                    |   sts-train-prep      |   300d 4096e 5n   |   0.571       |   0.569   |    112m12s    |
+Word2Vec CBOW       |   sts-train-prep      |   300d 16e 5n     |   0.086       |   0.062   |      0m15s    |
+                    |   sts-train-prep      |   300d 64e 5n     |   0.199       |   0.174   |      0m44s    |
+                    |   sts-train-prep      |   300d 128e 5n    |   0.248       |   0.227   |      1m24s    |
+                    |   sts-train-prep      |   300d 512e 5n    |   0.257       |   0.248   |      5m37s    |
+                    |   sts-train-prep      |   300d 1024e 5n   |   0.273       |   0.265   |     10m48s    |
+                    |   sts-train-prep      |   300d 2048e 5n   |   0.283       |   0.272   |     20m22s    |
+                    |   sts-train-prep      |   300d 4096e 5n   |   0.285       |   0.281   |     39m57s    |
+-------------------------------------------------------------------------------------------------------------
+Sent2Vec unigram    |   C4Corpus (part)     |   300d 2e 10n     |   0.639       |   0.653   |   1309m32s    |
+                    |   C4Corpus (part) 80% |   300d 2e 10n     |   0.626       |   0.638   |   1066m44s    |
+                    |   C4Corpus (part) 60% |   300d 2e 10n     |   0.612       |   0.621   |    837m26s    |
+                    |   C4Corpus (part) 40% |   300d 2e 10n     |   0.586       |   0.591   |    588m51s    |
+                    |   C4Corpus (part) 20% |   300d 2e 10n     |   0.514       |   0.506   |    319m13s    |
+                    |   C4Corpus (part) 10% |   300d 2e 10n     |   0.423       |   0.402   |    177m01s    |
+                    |   C4Corpus (part)  1% |   300d 2e 10n     |   0.108       |   0.097   |     14m50s    |
+StarSpace           |   C4Corpus (part)     |   300d 2e 10n     |   0.671       |   0.704   |  14074m20s    |
+                    |   C4Corpus (part) 80% |   300d 2e 10n     |   0.674       |   0.707   |  11424m58s    |
+                    |   C4Corpus (part) 60% |   300d 2e 10n     |   0.677       |   0.713   |   8559m01s    |
+                    |   C4Corpus (part) 40% |   300d 2e 10n     |   0.679       |   0.713   |   5616m10s    |
+                    |   C4Corpus (part) 20% |   300d 2e 10n     |   0.683       |   0.715   |   3074m57s    |
+                    |   C4Corpus (part) 10% |   300d 2e 10n     |   0.686       |   0.716   |   1550m12s    |
+                    |   C4Corpus (part)  1% |   300d 2e 10n     |   0.664       |   0.689   |    151m10s    |
+FastText SG OOV     |   C4Corpus (part)     |   300d 2e 10n     |   0.536       |   0.518   |    591m55s    |
+                    |   C4Corpus (part) 80% |   300d 2e 10n     |   0.537       |   0.519   |    519m23s    |
+                    |   C4Corpus (part) 60% |   300d 2e 10n     |   0.535       |   0.513   |    373m52s    |
+                    |   C4Corpus (part) 40% |   300d 2e 10n     |   0.533       |   0.515   |    258m20s    |
+                    |   C4Corpus (part) 20% |   300d 2e 10n     |   0.532       |   0.512   |    140m01s    |
+                    |   C4Corpus (part) 10% |   300d 2e 10n     |   0.532       |   0.509   |     73m15s    |
+                    |   C4Corpus (part)  1% |   300d 2e 10n     |   0.430       |   0.406   |      8m13s    |
+FastText SG         |   C4Corpus (part)     |   300d 2e 10n     |   0.534       |   0.517   |    591m55s    |
+                    |   C4Corpus (part) 80% |   300d 2e 10n     |   0.535       |   0.517   |    519m23s    |
+                    |   C4Corpus (part) 60% |   300d 2e 10n     |   0.533       |   0.512   |    373m52s    |
+                    |   C4Corpus (part) 40% |   300d 2e 10n     |   0.531       |   0.513   |    258m20s    |
+                    |   C4Corpus (part) 20% |   300d 2e 10n     |   0.530       |   0.510   |    140m01s    |
+                    |   C4Corpus (part) 10% |   300d 2e 10n     |   0.529       |   0.507   |     73m15s    |
+                    |   C4Corpus (part)  1% |   300d 2e 10n     |   0.422       |   0.394   |      8m13s    |
+Word2Vec SG HS      |   C4Corpus (part)     |   300d 2e hs      |   0.585       |   0.594   |    658m30s    |
+                    |   C4Corpus (part) 80% |   300d 2e hs      |   0.583       |   0.594   |    446m44s    |
+                    |   C4Corpus (part) 60% |   300d 2e hs      |   0.582       |   0.592   |    337m23s    |
+                    |   C4Corpus (part) 40% |   300d 2e hs      |   0.581       |   0.590   |    193m19s    |
+                    |   C4Corpus (part) 20% |   300d 2e hs      |   0.568       |   0.579   |    100m28s    |
+                    |   C4Corpus (part) 10% |   300d 2e hs      |   0.555       |   0.561   |     77m21s    |
+                    |   C4Corpus (part)  1% |   300d 2e hs      |   0.423       |   0.409   |      5m55s    |
+Word2Vec SG         |   C4Corpus (part)     |   300d 2e 10n     |   0.518       |   0.495   |    506m51s    |
+                    |   C4Corpus (part) 80% |   300d 2e 10n     |   0.515       |   0.492   |    388m31s    |
+                    |   C4Corpus (part) 60% |   300d 2e 10n     |   0.512       |   0.491   |    240m02s    |
+                    |   C4Corpus (part) 40% |   300d 2e 10n     |   0.505       |   0.482   |    155m31s    |
+                    |   C4Corpus (part) 20% |   300d 2e 10n     |   0.494       |   0.471   |     75m14s    |
+                    |   C4Corpus (part) 10% |   300d 2e 10n     |   0.473       |   0.449   |     44m32s    |
+                    |   C4Corpus (part)  1% |   300d 2e 10n     |   0.275       |   0.236   |      4m38s    |
+Word2Vec CBOW       |   C4Corpus (part)     |   300d 2e 10n     |   0.296       |   0.275   |     86m59s    |
+                    |   C4Corpus (part) 80% |   300d 2e 10n     |   0.294       |   0.271   |     75m55s    |
+                    |   C4Corpus (part) 60% |   300d 2e 10n     |   0.297       |   0.273   |     66m01s    |
+                    |   C4Corpus (part) 40% |   300d 2e 10n     |   0.296       |   0.267   |     45m38s    |
+                    |   C4Corpus (part) 20% |   300d 2e 10n     |   0.274       |   0.244   |     22m29s    |
+                    |   C4Corpus (part) 10% |   300d 2e 10n     |   0.237       |   0.204   |     13m04s    |
+                    |   C4Corpus (part)  1% |   300d 2e 10n     |   0.084       |   0.070   |      1m05s    |
+-------------------------------------------------------------------------------------------------------------
+StarSpace (mode 3)  |   sts-train-starspace |   300d 16e 50n    |   0.437       |   0.425   |      -----    |
+TF-IDF              |   sts-train-prep      |   -----           |   0.690       |   0.705   |      -----    |
+-------------------------------------------------------------------------------------------------------------
+Sent2Vec unigram    |   C4Corpus (part)     |   300d 10e 10n    |   0.691       |   0.709   |   7304m08s    |
+StarSpace           |   C4Corpus (part)     |   300d 1e 10n     |   0.673       |   0.708   |   7051m29s    |
+FastText SG OOV     |   C4Corpus (part)     |   300d 10e 10n    |   0.582       |   0.582   |   2777m01s    |
+FastText SG         |   C4Corpus (part)     |   300d 10e 10n    |   0.581       |   0.581   |   2777m01s    |
+Word2Vec SG HS      |   C4Corpus (part)     |   300d 4e 10n     |   0.590       |   0.597   |   1283m22s    |
+Word2Vec SG         |   C4Corpus (part)     |   300d 20e 10n    |   0.572       |   0.569   |   3864m35s    |
+Word2Vec CBOW       |   C4Corpus (part)     |   300d 17e 10n    |   0.311       |   0.309   |    750m59s    |
+
+C4Corpus (part):
+Lic_by-nc-nd_Lang_en_NoBoilerplate_true_MinHtml_true-r-00017.seg-00000.warc
+full:   456M words, 2.23M vocab
+80%:    364M words, 1.95M vocab
+60%:    273M words, 1.65M vocab
+40%:    182M words, 1.30M vocab
+20%:     91M words, 0.86M vocab
+10%:     45M words, 0.56M vocab
+1%:     4.4M words, 0.14M vocab
+
+======RESULTS (on the STS Benchmark test set) - COMPRESSED MODELS======
+- VOCABULARY PRUNING USING VECTOR NORM:
+algorithm                   |   model               |   # MB    |   SP      |   SP orig |   PR      |   PR orig |
+-----------------------------------------------------------------------------------------------------------------
+FastText (1513)             |   sts-train-prep 64e  |     4     |   0.416   |   0.529   |   0.319   |   0.511   |
+FastText (5000)             |   sts-train-prep 64e  |    13     |   0.414   |   0.529   |   0.342   |   0.511   |
+FastText (200000)           |   Wikipedia           |    --     |   -----   |   0.582   |   -----   |   0.584   |
+FastText (10295 - trn)      |   Wikipedia (200k)    |    27     |   0.528   |   0.578   |   0.529   |   0.582   |
+-----------------------------------------------------------------------------------------------------------------
+FastText (3413)             |   Wikipedia (200k)    |     9     |   0.419   |   0.578   |   0.282   |   0.582   |
+FastText (5000)             |   Wikipedia (200k)    |    13     |   0.460   |   0.578   |   0.437   |   0.582   |
+FastText (10000)            |   Wikipedia (200k)    |    26     |   0.475   |   0.578   |   0.448   |   0.582   |
+FastText (20000)            |   Wikipedia (200k)    |    53     |   0.490   |   0.578   |   0.472   |   0.582   |
+FastText (50000)            |   Wikipedia (200k)    |   132     |   0.534   |   0.578   |   0.533   |   0.582   |
+FastText (100000)           |   Wikipedia (200k)    |   263     |   0.549   |   0.578   |   0.550   |   0.582   |
+FastText (150000)           |   Wikipedia (200k)    |   393     |   0.557   |   0.578   |   0.561   |   0.582   |
+
+- VOCABULARY PRUNING USING WORD FREQUENCY:
+algorithm                   |   model               |   # MB    |   SP      |   SP orig |   PR      |   PR orig |
+-----------------------------------------------------------------------------------------------------------------
+FastText (3413)             |   Wikipedia (200k)    |     9     |   0.395   |   0.578   |   0.342   |   0.582   |
+FastText (5000)             |   Wikipedia (200k)    |    13     |   0.452   |   0.578   |   0.410   |   0.582   |
+FastText (10000)            |   Wikipedia (200k)    |    26     |   0.502   |   0.578   |   0.482   |   0.582   |
+FastText (20000)            |   Wikipedia (200k)    |    53     |   0.550   |   0.578   |   0.547   |   0.582   |
+FastText (50000)            |   Wikipedia (200k)    |   132     |   0.572   |   0.578   |   0.577   |   0.582   |
+FastText (100000)           |   Wikipedia (200k)    |   263     |   0.576   |   0.578   |   0.580   |   0.582   |
+FastText (150000)           |   Wikipedia (200k)    |   393     |   0.578   |   0.578   |   0.582   |   0.582   |
+
+- QUANTIZATION WITHOUT NORMALIZATION:
+algorithm                   |   model               |   # MB    |   SP      |   SP orig |   PR      |   PR orig |
+-----------------------------------------------------------------------------------------------------------------
+FastText (2-chunk, 512-cb)  |   Wikipedia (200k)    |   118     |   0.554   |   0.578   |   0.556   |   0.582   |
+FastText (2-chunk, 256-cb)  |   Wikipedia (200k)    |   110     |   0.554   |   0.578   |   0.556   |   0.582   |
+FastText (2-chunk, 128-cb)  |   Wikipedia (200k)    |    98     |   0.554   |   0.578   |   0.555   |   0.582   |
+FastText (2-chunk, 64-cb)   |   Wikipedia (200k)    |    89     |   0.550   |   0.578   |   0.550   |   0.582   |
+FastText (2-chunk, 32-cb)   |   Wikipedia (200k)    |    83     |   0.555   |   0.578   |   0.556   |   0.582   |
+FastText (2-chunk, 16-cb)   |   Wikipedia (200k)    |    72     |   0.551   |   0.578   |   0.557   |   0.582   |
+FastText (2-chunk, 8-cb)    |   Wikipedia (200k)    |    62     |   0.557   |   0.578   |   0.557   |   0.582   |
+FastText (2-chunk, 4-cb)    |   Wikipedia (200k)    |    62     |   0.450   |   0.578   |   0.431   |   0.582   |
+FastText (2-chunk, 2-cb)    |   Wikipedia (200k)    |    62     |   0.443   |   0.578   |   0.417   |   0.582   |
+FastText (3-chunk, 512-cb)  |   Wikipedia (200k)    |    78     |   0.553   |   0.578   |   0.553   |   0.582   |
+FastText (3-chunk, 256-cb)  |   Wikipedia (200k)    |    73     |   0.552   |   0.578   |   0.556   |   0.582   |
+FastText (3-chunk, 128-cb)  |   Wikipedia (200k)    |    65     |   0.551   |   0.578   |   0.549   |   0.582   |
+FastText (3-chunk, 64-cb)   |   Wikipedia (200k)    |    59     |   0.548   |   0.578   |   0.547   |   0.582   |
+FastText (3-chunk, 32-cb)   |   Wikipedia (200k)    |    53     |   0.541   |   0.578   |   0.540   |   0.582   |
+FastText (3-chunk, 16-cb)   |   Wikipedia (200k)    |    45     |   0.555   |   0.578   |   0.547   |   0.582   |
+FastText (3-chunk, 8-cb)    |   Wikipedia (200k)    |    42     |   0.467   |   0.578   |   0.452   |   0.582   |
+FastText (3-chunk, 4-cb)    |   Wikipedia (200k)    |    42     |   0.433   |   0.578   |   0.414   |   0.582   |
+FastText (3-chunk, 2-cb)    |   Wikipedia (200k)    |    42     |   0.414   |   0.578   |   0.391   |   0.582   |
+FastText (4-chunk, 512-cb)  |   Wikipedia (200k)    |    59     |   0.554   |   0.578   |   0.554   |   0.582   |
+FastText (4-chunk, 256-cb)  |   Wikipedia (200k)    |    56     |   0.556   |   0.578   |   0.561   |   0.582   |
+FastText (4-chunk, 128-cb)  |   Wikipedia (200k)    |    49     |   0.548   |   0.578   |   0.549   |   0.582   |
+FastText (4-chunk, 64-cb)   |   Wikipedia (200k)    |    45     |   0.551   |   0.578   |   0.556   |   0.582   |
+FastText (4-chunk, 32-cb)   |   Wikipedia (200k)    |    42     |   0.553   |   0.578   |   0.557   |   0.582   |
+FastText (4-chunk, 16-cb)   |   Wikipedia (200k)    |    37     |   0.561   |   0.578   |   0.572   |   0.582   |
+FastText (4-chunk, 8-cb)    |   Wikipedia (200k)    |    32     |   0.450   |   0.578   |   0.425   |   0.582   |
+FastText (4-chunk, 4-cb)    |   Wikipedia (200k)    |    32     |   0.437   |   0.578   |   0.412   |   0.582   |
+FastText (4-chunk, 2-cb)    |   Wikipedia (200k)    |    32     |   0.446   |   0.578   |   0.412   |   0.582   |
+FastText (5-chunk, 512-cb)  |   Wikipedia (200k)    |    48     |   0.552   |   0.578   |   0.554   |   0.582   |
+FastText (5-chunk, 256-cb)  |   Wikipedia (200k)    |    45     |   0.553   |   0.578   |   0.554   |   0.582   |
+FastText (5-chunk, 128-cb)  |   Wikipedia (200k)    |    39     |   0.548   |   0.578   |   0.543   |   0.582   |
+FastText (5-chunk, 64-cb)   |   Wikipedia (200k)    |    37     |   0.537   |   0.578   |   0.534   |   0.582   |
+FastText (5-chunk, 32-cb)   |   Wikipedia (200k)    |    34     |   0.544   |   0.578   |   0.548   |   0.582   |
+FastText (5-chunk, 16-cb)   |   Wikipedia (200k)    |    30     |   0.451   |   0.578   |   0.429   |   0.582   |
+FastText (5-chunk, 8-cb)    |   Wikipedia (200k)    |    26     |   0.455   |   0.578   |   0.430   |   0.582   |
+FastText (5-chunk, 4-cb)    |   Wikipedia (200k)    |    26     |   0.434   |   0.578   |   0.408   |   0.582   |
+FastText (5-chunk, 2-cb)    |   Wikipedia (200k)    |    26     |   0.451   |   0.578   |   0.418   |   0.582   |
+FastText (6-chunk, 512-cb)  |   Wikipedia (200k)    |    40     |   0.558   |   0.578   |   0.564   |   0.582   |
+FastText (6-chunk, 256-cb)  |   Wikipedia (200k)    |    38     |   0.552   |   0.578   |   0.552   |   0.582   |
+FastText (6-chunk, 128-cb)  |   Wikipedia (200k)    |    33     |   0.537   |   0.578   |   0.534   |   0.582   |
+FastText (6-chunk, 64-cb)   |   Wikipedia (200k)    |    30     |   0.536   |   0.578   |   0.537   |   0.582   |
+FastText (6-chunk, 32-cb)   |   Wikipedia (200k)    |    28     |   0.546   |   0.578   |   0.559   |   0.582   |
+FastText (6-chunk, 16-cb)   |   Wikipedia (200k)    |    26     |   0.443   |   0.578   |   0.418   |   0.582   |
+FastText (6-chunk, 8-cb)    |   Wikipedia (200k)    |    22     |   0.448   |   0.578   |   0.422   |   0.582   |
+FastText (6-chunk, 4-cb)    |   Wikipedia (200k)    |    22     |   0.417   |   0.578   |   0.401   |   0.582   |
+FastText (6-chunk, 2-cb)    |   Wikipedia (200k)    |    22     |   0.409   |   0.578   |   0.376   |   0.582   |
+FastText (10-chunk, 512-cb) |   Wikipedia (200k)    |    25     |   0.539   |   0.578   |   0.540   |   0.582   |
+FastText (10-chunk, 256-cb) |   Wikipedia (200k)    |    23     |   0.544   |   0.578   |   0.553   |   0.582   |
+FastText (10-chunk, 128-cb) |   Wikipedia (200k)    |    21     |   0.543   |   0.578   |   0.561   |   0.582   |
+FastText (10-chunk, 64-cb)  |   Wikipedia (200k)    |    19     |   0.458   |   0.578   |   0.436   |   0.582   |
+FastText (10-chunk, 32-cb)  |   Wikipedia (200k)    |    18     |   0.455   |   0.578   |   0.432   |   0.582   |
+FastText (10-chunk, 16-cb)  |   Wikipedia (200k)    |    16     |   0.447   |   0.578   |   0.420   |   0.582   |
+FastText (10-chunk, 8-cb)   |   Wikipedia (200k)    |    14     |   0.460   |   0.578   |   0.435   |   0.582   |
+FastText (10-chunk, 4-cb)   |   Wikipedia (200k)    |    14     |   0.432   |   0.578   |   0.418   |   0.582   |
+FastText (10-chunk, 2-cb)   |   Wikipedia (200k)    |    14     |   0.423   |   0.578   |   0.406   |   0.582   |
+
+- QUANTIZATION WITH NORMALIZATION:
+algorithm                   |   model               |   # MB    |   SP      |   SP orig |   PR      |   PR orig |
+-----------------------------------------------------------------------------------------------------------------
+FastText (2-chunk, 512-cb)  |   Wikipedia (200k)    |   121     |   0.553   |   0.578   |   0.556   |   0.582   |
+FastText (2-chunk, 256-cb)  |   Wikipedia (200k)    |   115     |   0.555   |   0.578   |   0.558   |   0.582   |
+FastText (2-chunk, 128-cb)  |   Wikipedia (200k)    |   102     |   0.555   |   0.578   |   0.559   |   0.582   |
+FastText (2-chunk, 64-cb)   |   Wikipedia (200k)    |    92     |   0.552   |   0.578   |   0.554   |   0.582   |
+FastText (2-chunk, 32-cb)   |   Wikipedia (200k)    |    88     |   0.557   |   0.578   |   0.561   |   0.582   |
+FastText (2-chunk, 16-cb)   |   Wikipedia (200k)    |    76     |   0.558   |   0.578   |   0.561   |   0.582   |
+FastText (2-chunk, 8-cb)    |   Wikipedia (200k)    |    65     |   0.558   |   0.578   |   0.560   |   0.582   |
+FastText (2-chunk, 4-cb)    |   Wikipedia (200k)    |    65     |   0.560   |   0.578   |   0.570   |   0.582   |
+FastText (2-chunk, 2-cb)    |   Wikipedia (200k)    |    65     |   0.567   |   0.578   |   0.573   |   0.582   |
+FastText (3-chunk, 512-cb)  |   Wikipedia (200k)    |    81     |   0.555   |   0.578   |   0.558   |   0.582   |
+FastText (3-chunk, 256-cb)  |   Wikipedia (200k)    |    77     |   0.557   |   0.578   |   0.561   |   0.582   |
+FastText (3-chunk, 128-cb)  |   Wikipedia (200k)    |    68     |   0.555   |   0.578   |   0.557   |   0.582   |
+FastText (3-chunk, 64-cb)   |   Wikipedia (200k)    |    62     |   0.558   |   0.578   |   0.562   |   0.582   |
+FastText (3-chunk, 32-cb)   |   Wikipedia (200k)    |    59     |   0.559   |   0.578   |   0.564   |   0.582   |
+FastText (3-chunk, 16-cb)   |   Wikipedia (200k)    |    54     |   0.557   |   0.578   |   0.567   |   0.582   |
+FastText (3-chunk, 8-cb)    |   Wikipedia (200k)    |    45     |   0.569   |   0.578   |   0.580   |   0.582   |
+FastText (3-chunk, 4-cb)    |   Wikipedia (200k)    |    45     |   0.556   |   0.578   |   0.566   |   0.582   |
+FastText (3-chunk, 2-cb)    |   Wikipedia (200k)    |    45     |   0.537   |   0.578   |   0.545   |   0.582   |
+FastText (4-chunk, 512-cb)  |   Wikipedia (200k)    |    62     |   0.555   |   0.578   |   0.558   |   0.582   |
+FastText (4-chunk, 256-cb)  |   Wikipedia (200k)    |    59     |   0.560   |   0.578   |   0.563   |   0.582   |
+FastText (4-chunk, 128-cb)  |   Wikipedia (200k)    |    52     |   0.563   |   0.578   |   0.568   |   0.582   |
+FastText (4-chunk, 64-cb)   |   Wikipedia (200k)    |    48     |   0.557   |   0.578   |   0.558   |   0.582   |
+FastText (4-chunk, 32-cb)   |   Wikipedia (200k)    |    46     |   0.562   |   0.578   |   0.567   |   0.582   |
+FastText (4-chunk, 16-cb)   |   Wikipedia (200k)    |    41     |   0.570   |   0.578   |   0.572   |   0.582   |
+FastText (4-chunk, 8-cb)    |   Wikipedia (200k)    |    35     |   0.580   |   0.578   |   0.582   |   0.582   |
+FastText (4-chunk, 4-cb)    |   Wikipedia (200k)    |    35     |   0.559   |   0.578   |   0.562   |   0.582   |
+FastText (4-chunk, 2-cb)    |   Wikipedia (200k)    |    35     |   0.551   |   0.578   |   0.550   |   0.582   |
+FastText (5-chunk, 512-cb)  |   Wikipedia (200k)    |    51     |   0.559   |   0.578   |   0.566   |   0.582   |
+FastText (5-chunk, 256-cb)  |   Wikipedia (200k)    |    48     |   0.560   |   0.578   |   0.563   |   0.582   |
+FastText (5-chunk, 128-cb)  |   Wikipedia (200k)    |    43     |   0.560   |   0.578   |   0.564   |   0.582   |
+FastText (5-chunk, 64-cb)   |   Wikipedia (200k)    |    40     |   0.561   |   0.578   |   0.565   |   0.582   |
+FastText (5-chunk, 32-cb)   |   Wikipedia (200k)    |    38     |   0.570   |   0.578   |   0.576   |   0.582   |
+FastText (5-chunk, 16-cb)   |   Wikipedia (200k)    |    34     |   0.562   |   0.578   |   0.569   |   0.582   |
+FastText (5-chunk, 8-cb)    |   Wikipedia (200k)    |    29     |   0.565   |   0.578   |   0.564   |   0.582   |
+FastText (5-chunk, 4-cb)    |   Wikipedia (200k)    |    29     |   0.556   |   0.578   |   0.554   |   0.582   |
+FastText (5-chunk, 2-cb)    |   Wikipedia (200k)    |    29     |   0.553   |   0.578   |   0.547   |   0.582   |
+FastText (6-chunk, 512-cb)  |   Wikipedia (200k)    |    43     |   0.563   |   0.578   |   0.565   |   0.582   |
+FastText (6-chunk, 256-cb)  |   Wikipedia (200k)    |    41     |   0.563   |   0.578   |   0.569   |   0.582   |
+FastText (6-chunk, 128-cb)  |   Wikipedia (200k)    |    37     |   0.560   |   0.578   |   0.566   |   0.582   |
+FastText (6-chunk, 64-cb)   |   Wikipedia (200k)    |    34     |   0.569   |   0.578   |   0.574   |   0.582   |
+FastText (6-chunk, 32-cb)   |   Wikipedia (200k)    |    32     |   0.562   |   0.578   |   0.568   |   0.582   |
+FastText (6-chunk, 16-cb)   |   Wikipedia (200k)    |    29     |   0.558   |   0.578   |   0.564   |   0.582   |
+FastText (6-chunk, 8-cb)    |   Wikipedia (200k)    |    25     |   0.566   |   0.578   |   0.565   |   0.582   |
+FastText (6-chunk, 4-cb)    |   Wikipedia (200k)    |    25     |   0.549   |   0.578   |   0.560   |   0.582   |
+FastText (6-chunk, 2-cb)    |   Wikipedia (200k)    |    25     |   0.529   |   0.578   |   0.527   |   0.582   |
+FastText (10-chunk, 512-cb) |   Wikipedia (200k)    |    28     |   0.565   |   0.578   |   0.573   |   0.582   |
+FastText (10-chunk, 256-cb) |   Wikipedia (200k)    |    27     |   0.561   |   0.578   |   0.568   |   0.582   |
+FastText (10-chunk, 128-cb) |   Wikipedia (200k)    |    24     |   0.570   |   0.578   |   0.574   |   0.582   |
+FastText (10-chunk, 64-cb)  |   Wikipedia (200k)    |    22     |   0.558   |   0.578   |   0.560   |   0.582   |
+FastText (10-chunk, 32-cb)  |   Wikipedia (200k)    |    21     |   0.552   |   0.578   |   0.558   |   0.582   |
+FastText (10-chunk, 16-cb)  |   Wikipedia (200k)    |    20     |   0.554   |   0.578   |   0.560   |   0.582   |
+FastText (10-chunk, 8-cb)   |   Wikipedia (200k)    |    17     |   0.546   |   0.578   |   0.554   |   0.582   |
+FastText (10-chunk, 4-cb)   |   Wikipedia (200k)    |    17     |   0.541   |   0.578   |   0.547   |   0.582   |
+FastText (10-chunk, 2-cb)   |   Wikipedia (200k)    |    17     |   0.525   |   0.578   |   0.524   |   0.582   |
+
+- QUANTIZATION WITH NORMALIZATION AND DISTINCT CBs:
+algorithm                   |   model               |   # MB    |   SP      |   SP orig |   PR      |   PR orig |
+-----------------------------------------------------------------------------------------------------------------
+FastText (2-chunk, 512-cb)  |   Wikipedia (200k)    |   120     |   0.554   |   0.578   |   0.557   |   0.582   |
+FastText (2-chunk, 256-cb)  |   Wikipedia (200k)    |   113     |   0.553   |   0.578   |   0.556   |   0.582   |
+FastText (2-chunk, 128-cb)  |   Wikipedia (200k)    |   100     |   0.553   |   0.578   |   0.557   |   0.582   |
+FastText (2-chunk, 64-cb)   |   Wikipedia (200k)    |    92     |   0.556   |   0.578   |   0.560   |   0.582   |
+FastText (2-chunk, 32-cb)   |   Wikipedia (200k)    |    86     |   0.558   |   0.578   |   0.561   |   0.582   |
+FastText (2-chunk, 16-cb)   |   Wikipedia (200k)    |    76     |   0.558   |   0.578   |   0.561   |   0.582   |
+FastText (2-chunk, 8-cb)    |   Wikipedia (200k)    |    65     |   0.561   |   0.578   |   0.563   |   0.582   |
+FastText (2-chunk, 4-cb)    |   Wikipedia (200k)    |    65     |   0.562   |   0.578   |   0.562   |   0.582   |
+FastText (2-chunk, 2-cb)    |   Wikipedia (200k)    |    65     |   0.552   |   0.578   |   0.545   |   0.582   |
+FastText (3-chunk, 512-cb)  |   Wikipedia (200k)    |    81     |   0.555   |   0.578   |   0.559   |   0.582   |
+FastText (3-chunk, 256-cb)  |   Wikipedia (200k)    |    77     |   0.556   |   0.578   |   0.558   |   0.582   |
+FastText (3-chunk, 128-cb)  |   Wikipedia (200k)    |    68     |   0.555   |   0.578   |   0.559   |   0.582   |
+FastText (3-chunk, 64-cb)   |   Wikipedia (200k)    |    63     |   0.565   |   0.578   |   0.570   |   0.582   |
+FastText (3-chunk, 32-cb)   |   Wikipedia (200k)    |    59     |   0.561   |   0.578   |   0.564   |   0.582   |
+FastText (3-chunk, 16-cb)   |   Wikipedia (200k)    |    52     |   0.558   |   0.578   |   0.562   |   0.582   |
+FastText (3-chunk, 8-cb)    |   Wikipedia (200k)    |    45     |   0.556   |   0.578   |   0.563   |   0.582   |
+FastText (3-chunk, 4-cb)    |   Wikipedia (200k)    |    45     |   0.560   |   0.578   |   0.563   |   0.582   |
+FastText (3-chunk, 2-cb)    |   Wikipedia (200k)    |    45     |   0.539   |   0.578   |   0.528   |   0.582   |
+FastText (4-chunk, 512-cb)  |   Wikipedia (200k)    |    63     |   0.559   |   0.578   |   0.563   |   0.582   |
+FastText (4-chunk, 256-cb)  |   Wikipedia (200k)    |    59     |   0.562   |   0.578   |   0.563   |   0.582   |
+FastText (4-chunk, 128-cb)  |   Wikipedia (200k)    |    52     |   0.565   |   0.578   |   0.570   |   0.582   |
+FastText (4-chunk, 64-cb)   |   Wikipedia (200k)    |    48     |   0.566   |   0.578   |   0.567   |   0.582   |
+FastText (4-chunk, 32-cb)   |   Wikipedia (200k)    |    46     |   0.571   |   0.578   |   0.576   |   0.582   |
+FastText (4-chunk, 16-cb)   |   Wikipedia (200k)    |    41     |   0.568   |   0.578   |   0.571   |   0.582   |
+FastText (4-chunk, 8-cb)    |   Wikipedia (200k)    |    35     |   0.570   |   0.578   |   0.570   |   0.582   |
+FastText (4-chunk, 4-cb)    |   Wikipedia (200k)    |    35     |   0.567   |   0.578   |   0.565   |   0.582   |
+FastText (4-chunk, 2-cb)    |   Wikipedia (200k)    |    35     |   0.535   |   0.578   |   0.521   |   0.582   |
+FastText (5-chunk, 512-cb)  |   Wikipedia (200k)    |    51     |   0.559   |   0.578   |   0.564   |   0.582   |
+FastText (5-chunk, 256-cb)  |   Wikipedia (200k)    |    48     |   0.562   |   0.578   |   0.566   |   0.582   |
+FastText (5-chunk, 128-cb)  |   Wikipedia (200k)    |    43     |   0.563   |   0.578   |   0.564   |   0.582   |
+FastText (5-chunk, 64-cb)   |   Wikipedia (200k)    |    40     |   0.561   |   0.578   |   0.566   |   0.582   |
+FastText (5-chunk, 32-cb)   |   Wikipedia (200k)    |    38     |   0.568   |   0.578   |   0.570   |   0.582   |
+FastText (5-chunk, 16-cb)   |   Wikipedia (200k)    |    34     |   0.566   |   0.578   |   0.566   |   0.582   |
+FastText (5-chunk, 8-cb)    |   Wikipedia (200k)    |    29     |   0.559   |   0.578   |   0.559   |   0.582   |
+FastText (5-chunk, 4-cb)    |   Wikipedia (200k)    |    29     |   0.552   |   0.578   |   0.557   |   0.582   |
+FastText (5-chunk, 2-cb)    |   Wikipedia (200k)    |    29     |   0.532   |   0.578   |   0.529   |   0.582   |
+FastText (6-chunk, 512-cb)  |   Wikipedia (200k)    |    44     |   0.558   |   0.578   |   0.562   |   0.582   |
+FastText (6-chunk, 256-cb)  |   Wikipedia (200k)    |    41     |   0.562   |   0.578   |   0.565   |   0.582   |
+FastText (6-chunk, 128-cb)  |   Wikipedia (200k)    |    37     |   0.559   |   0.578   |   0.563   |   0.582   |
+FastText (6-chunk, 64-cb)   |   Wikipedia (200k)    |    34     |   0.561   |   0.578   |   0.563   |   0.582   |
+FastText (6-chunk, 32-cb)   |   Wikipedia (200k)    |    33     |   0.564   |   0.578   |   0.567   |   0.582   |
+FastText (6-chunk, 16-cb)   |   Wikipedia (200k)    |    29     |   0.563   |   0.578   |   0.565   |   0.582   |
+FastText (6-chunk, 8-cb)    |   Wikipedia (200k)    |    25     |   0.557   |   0.578   |   0.553   |   0.582   |
+FastText (6-chunk, 4-cb)    |   Wikipedia (200k)    |    25     |   0.551   |   0.578   |   0.544   |   0.582   |
+FastText (6-chunk, 2-cb)    |   Wikipedia (200k)    |    25     |   0.521   |   0.578   |   0.516   |   0.582   |
+FastText (10-chunk, 512-cb) |   Wikipedia (200k)    |    28     |   0.562   |   0.578   |   0.570   |   0.582   |
+FastText (10-chunk, 256-cb) |   Wikipedia (200k)    |    27     |   0.563   |   0.578   |   0.569   |   0.582   |
+FastText (10-chunk, 128-cb) |   Wikipedia (200k)    |    24     |   0.558   |   0.578   |   0.565   |   0.582   |
+FastText (10-chunk, 64-cb)  |   Wikipedia (200k)    |    23     |   0.552   |   0.578   |   0.555   |   0.582   |
+FastText (10-chunk, 32-cb)  |   Wikipedia (200k)    |    22     |   0.557   |   0.578   |   0.553   |   0.582   |
+FastText (10-chunk, 16-cb)  |   Wikipedia (200k)    |    20     |   0.549   |   0.578   |   0.548   |   0.582   |
+FastText (10-chunk, 8-cb)   |   Wikipedia (200k)    |    17     |   0.547   |   0.578   |   0.551   |   0.582   |
+FastText (10-chunk, 4-cb)   |   Wikipedia (200k)    |    17     |   0.537   |   0.578   |   0.531   |   0.582   |
+FastText (10-chunk, 2-cb)   |   Wikipedia (200k)    |    17     |   0.505   |   0.578   |   0.494   |   0.582   |
+
+======NOTES FOR TRAINING MODELS======
+StarSpace classification:
+./starspace train -trainFile <trainFile> -model <outputModel> -dim 300 -epoch 16
+<trainFile> - each line one sentence + labels prefixed by '__label__'
+
+StarSpace sentence similarity:
+./starspace train -trainFile <trainFile> -model <outputModel> -trainMode 3 -fileFormat labelDoc -dim 300 -epoch 16
+<trainFile> - each line similar sentences, delimited by tabs
+
+StarSpace embeddings:
+./starspace train -trainFile <trainFile> -model <outputModel> -trainMode 5 -dim 300 -epoch 16 -negSearchLimit 10
+<trainFile> - each line one sentence / document
+
+FastText classification:
+./fasttext supervised -input <trainFile> -output <outputModelName> -dim 300 -epoch 16 -minCount 1
+<trainFile> - same as for StarSpace
+
+FastText embeddings:
+./fasttext skipgram (cbow) -input <trainFile> -output <outputModelName> -dim 300 -epoch 16 -minCount 1 -loss ns -neg 10
+<trainFile> - plain text
+
+sent2vec embeddings:
+./fasttext sent2vec -input <trainFile> -output <outputModelName> -dim 300 -epoch 16 -minCount 1 -wordNgrams 1 -loss ns -neg 10
+<trainFile> - tokenized sentences, one per line

@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-# install sent2vec
-
 pushd /tmp
 git clone https://github.com/epfml/sent2vec.git
 
