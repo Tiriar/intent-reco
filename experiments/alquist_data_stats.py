@@ -1,10 +1,20 @@
-"""Module for getting statistics on the Alquist dataset."""
+# -*- coding: utf-8 -*-
+"""
+    experiments.alquist_data_stats
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-import numpy as np
-import matplotlib.pyplot as plt
+    Module for getting statistics on the Alquist dataset.
+
+    @author: tomas.brich@seznam.cz
+"""
+
 from collections import Counter
+
+import matplotlib.pyplot as plt
+import numpy as np
 from nltk.corpus import stopwords
 
+from intent_reco import DATA_DIR
 from intent_reco.utils.preprocessing import tokenize_sentences
 
 
@@ -15,17 +25,17 @@ def load_file_raw(path, lower=False):
     :param lower: lower-case the text
     :return: X (sentences) and y (intents)
     """
-    x = []
-    y = []
+
+    x, y = [], []
     with open(path, 'r', encoding='utf-8') as f:
         for line in f:
             tmp = line.split('\t')
             text = tmp[2].strip()
+            if lower:
+                text = text.lower()
             if text not in BLACKLIST:
                 y.append(tmp[0].strip())
                 x.append(text)
-            if lower:
-                x[-1] = x[-1].lower()
     return x, y
 
 
@@ -36,6 +46,7 @@ def count_unique_sentences(snts, ints):
     :param ints: list of intents
     :return: dict with counts per intent + total
     """
+
     count = {'total': len(set(snts))}
     per_int = set(zip(snts, ints))
     for s, i in per_int:
@@ -52,11 +63,11 @@ def build_vocabulary(snts, remove=None):
     :param remove: list of words to remove
     :return: Counter of words
     """
+
     w = []
     for s in snts:
         w += s.split()
-    remove = set(remove)
-    count = Counter(x for x in w if x not in remove)
+    count = Counter(x for x in w if x not in set(remove))
     return count
 
 
@@ -68,28 +79,28 @@ def words_per_intent(snts, ints, remove=None):
     :param remove: list of words to remove
     :return: dictionary of counters by intent
     """
-    words = {}
+
+    words = dict()
     for s, i in zip(snts, ints):
         if i not in words:
             words[i] = []
         words[i] += s.split()
 
-    counts = {}
     remove = set(remove)
-    for i in words:
-        counts[i] = Counter(x for x in words[i] if x not in remove)
+    counts = {i: Counter(x for x in words[i] if x not in remove) for i in words}
     return counts
 
 
 def plot_bar(n1, n2, xlabels, title, legend):
     """
-    Plots a bar graph (without showing) for two counts
+    Plots a bar graph (without showing) for two counts.
     :param n1: list of first counts
     :param n2: list of second counts
     :param xlabels: X axis labels
     :param title: title of the graph
     :param legend: legend entries
     """
+
     n = len(n1)
     assert n == len(n2)
 
@@ -114,7 +125,7 @@ def plot_bar(n1, n2, xlabels, title, legend):
                     ha='left', va='bottom', rotation=70)
 
 
-DATA_PATH = '../data/alquist/dm-data-snapshot-uniq.csv'
+DATA_PATH = DATA_DIR + 'alquist/dm-data-snapshot-uniq.csv'
 STOPWORDS = stopwords.words('english')
 PUNCTUATION = ['.', '?', '!']
 # BLACKLIST = ['no', 'yes', 'yeah', 'okay', 'sure', 'right']
@@ -129,15 +140,12 @@ if __name__ == '__main__':
     cnt = Counter(intents)
     cnt_uniq = count_unique_sentences(sents, intents)
     print('Total:', len(sents), '/', cnt_uniq['total'])
-    c1 = []
-    c2 = []
+    c1, c2 = [], []
     for intent in int_uniq:
         c1.append(cnt[intent])
         c2.append(cnt_uniq[intent])
         print(intent+':', c1[-1], '/', c2[-1])
-    plot_bar(c1, c2, int_uniq,
-             'Sentence counts (total: {} / {})'.format(len(sents), cnt_uniq['total']),
-             ('full', 'unique'))
+    plot_bar(c1, c2, int_uniq, f"Sentence counts (total: {len(sents)} / {cnt_uniq['total']})", ('full', 'unique'))
 
     print('\n===VOCABULARY (full / without stopwords)===')
     voc = build_vocabulary(sents, remove=PUNCTUATION)
@@ -151,16 +159,14 @@ if __name__ == '__main__':
     print('\n===VOCABULARY PER INTENT (full / without stopwords)===')
     cnt = words_per_intent(sents, intents, remove=PUNCTUATION)
     cnt_stop = words_per_intent(sents, intents, remove=STOPWORDS+PUNCTUATION)
-    c1 = []
-    c2 = []
+    c1, c2 = [], []
     for intent in int_uniq:
         c1.append(len(cnt[intent]))
         c2.append(len(cnt_stop[intent]))
         print(intent+':', c1[-1], '/', c2[-1])
         print(cnt[intent].most_common(5))
         print(cnt_stop[intent].most_common(5))
-    plot_bar(c1, c2, int_uniq,
-             'Intent vocabularies (total: {} / {})'.format(len(voc), len(voc_stop)),
+    plot_bar(c1, c2, int_uniq, f'Intent vocabularies (total: {len(voc)} / {len(voc_stop)})',
              ('full', 'without stop-words'))
 
     plt.show()

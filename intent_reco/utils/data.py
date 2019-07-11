@@ -245,7 +245,7 @@ def sts_starspace(path, mode='train'):
             s2 = convert_numbers(s2)
             out.append(s1 + '\t' + s2 + '\n')
 
-    with open(os.path.join(path, 'StarSpace_preprocessed/sts-{}.txt'.format(mode)), 'w+') as f:
+    with open(os.path.join(path, 'starspace/sts-{}.txt'.format(mode)), 'w+') as f:
         f.writelines(out)
 
 
@@ -287,7 +287,7 @@ def alquist_starspace(path):
         out.append(s + '\t' + '__label__' + i + '\n')
 
     tmp = os.path.split(path)
-    opath = os.path.join(tmp[0], 'StarSpace_preprocessed', os.path.splitext(tmp[1])[0] + '.txt')
+    opath = os.path.join(tmp[0], 'starspace', os.path.splitext(tmp[1])[0] + '.txt')
     with open(opath, 'w+') as f:
         f.writelines(out)
 

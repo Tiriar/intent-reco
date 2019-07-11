@@ -17,6 +17,9 @@ smart_open = "*"
 tqdm = "*"
 
 [dev-packages]
+#gensim = "*"
+#glove_python = "*"
 #keras = "*"
+#spacy = "*"
 #torch = "*"
 #torchvision = "*"

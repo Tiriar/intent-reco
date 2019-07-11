@@ -1,25 +1,30 @@
+# -*- coding: utf-8 -*-
 """
-Module for evaluating the InferSent embedding model on the STS Benchmark dataset (regression trained on STS train).
+    experiments.compare_sts_infersent
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The code was mostly dug out from the SentEval project: https://github.com/facebookresearch/SentEval
+    Module for evaluating the InferSent embedding model on the STS Benchmark dataset (regression trained on STS train).
+
+    The code was mostly dug out from the SentEval project: https://github.com/facebookresearch/SentEval
+
+    @author: tomas.brich@seznam.cz
 """
 
-import io
 import copy
 import numpy as np
-
-import torch
-import torch.optim as optim
-from torch import nn
-from torch.autograd import Variable
-
-from sklearn.metrics import mean_squared_error
-from scipy.stats import pearsonr, spearmanr
 from timeit import default_timer as timer
 
-GLOVE_PATH = '../data/glove.840B.300d.txt'
-MODEL_PATH = '../data/infersent.allnli.pickle'
-DATA_PATH = '../data/stsbenchmark/InferSent_preprocessed/'
+import torch
+from scipy.stats import pearsonr, spearmanr
+from sklearn.metrics import mean_squared_error
+from torch import nn, optim
+from torch.autograd import Variable
+
+from intent_reco import DATA_DIR
+
+GLOVE_PATH = DATA_DIR + 'glove.840B.300d.txt'
+MODEL_PATH = DATA_DIR + 'infersent.allnli.pickle'
+DATA_PATH = DATA_DIR + 'stsbenchmark/infersent/'
 
 
 class STSBenchmarkEval(object):
@@ -37,7 +42,7 @@ class STSBenchmarkEval(object):
         return prepare(params, samples)
 
     def run(self, params):
-        sick_embed = {'train': {}, 'dev': {}, 'test': {}}   # type: dict
+        sick_embed = {'train': dict(), 'dev': dict(), 'test': dict()}
         bsize = params.batch_size
 
         for key in self.sick_data:
@@ -100,7 +105,6 @@ class STSBenchmarkEval(object):
 
 class RelatednessPytorch(object):
     def __init__(self, train, valid, test, devscores, config):
-        # fix seed
         np.random.seed(config['seed'])
         torch.manual_seed(config['seed'])
         assert torch.cuda.is_available(), 'torch.cuda required for Relatedness'
@@ -213,13 +217,12 @@ class DotDict(dict):
 def load_file(fpath):
     """Load the STS Benchmark csv format."""
     sick_data = {'X_A': [], 'X_B': [], 'y': []}
-    with io.open(fpath, 'r', encoding='utf-8') as f:
+    with open(fpath, 'r', encoding='utf-8') as f:
         for line in f:
             text = line.strip().split('\t')
             sick_data['X_A'].append(text[5].split())
             sick_data['X_B'].append(text[6].split())
-            sick_data['y'].append(text[4])
-    sick_data['y'] = [float(s) for s in sick_data['y']]
+            sick_data['y'].append(float(text[4]))
     return sick_data
 
 

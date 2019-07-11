@@ -1,16 +1,24 @@
+# -*- coding: utf-8 -*-
 """
-Module for plotting a learning curve for intent recognition on the Alquist dataset.
+    experiments.alquist_templates
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The scikit-learn module is not used for this purpose as we want to see the learning curves for each intent individually
-and we also want to increase the training size for each intent with the same increment even though the intent-sets have
-varying sizes.
+    Module for plotting a learning curve for intent recognition on the Alquist dataset.
+
+    The scikit-learn module is not used for this purpose as we want to see the learning curves for each intent
+    individually and we also want to increase the training size for each intent with the same increment even though
+    the intent-sets have varying sizes.
+
+    @author: tomas.brich@seznam.cz
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
 from random import seed, shuffle
+
+import matplotlib.pyplot as plt
+import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
+from intent_reco import DATA_DIR
 from intent_reco.embeddings.compressed import CompressedModel
 
 
@@ -21,7 +29,8 @@ def load_file(path, lower=False):
     :param lower: lower-case the text
     :return: dictionary with intents as keys
     """
-    d = {}
+
+    d = dict()
     with open(path, 'r', encoding='utf-8') as f:
         for line in f:
             tmp = line.split('\t')
@@ -43,8 +52,8 @@ def split_data(d, rate=0.5):
     :param rate: (0-1) - rate in which to split the data
     :return: two sets of data
     """
-    out1 = {}
-    out2 = {}
+
+    out1, out2 = dict(), dict()
     for intt in d:
         x = list(d[intt])
         shuffle(x)
@@ -64,8 +73,8 @@ def split_data_absolute(d, size=50, skip_size=None):
     :param skip_size: skip intents with datasets smaller than <skip_size>
     :return: two sets of data (as dicts)
     """
-    out1 = {}
-    out2 = {}
+
+    out1, out2 = dict(), dict()
     for intt in d:
         if (skip_size is not None and len(d[intt]) < skip_size) or len(d[intt]) <= size:
             continue
@@ -84,18 +93,20 @@ def find_closest_intent(sv, y, best=0):
     :param best: set previous best cosine similarity (used for learning curve)
     :return: closest intent and its best cosine similarity
     """
+
+    sv = sv.reshape(1, -1)
     best_intt = None
     for intt in y:
-        m = np.max(cosine_similarity(y[intt], sv.reshape(1, -1)))
+        m = np.max(cosine_similarity(y[intt], sv))
         if m > best:
             best = m
             best_intt = intt
     return best_intt, best
 
 
-STARSPACE_PATH = '../data/starspace_C4C_2e_50k.txt'
-STARSPACE_CB_PATH = '../data/starspace_C4C_2e_50k_cb.txt'
-DATA_PATH = '../data/alquist/dm-data-snapshot-uniq.csv'
+STARSPACE_PATH = DATA_DIR + 'starspace_C4C_2e_50k.txt'
+STARSPACE_CB_PATH = DATA_DIR + 'starspace_C4C_2e_50k_cb.txt'
+DATA_PATH = DATA_DIR + 'alquist/dm-data-snapshot-uniq.csv'
 # BLACKLIST = ['no', 'yes', 'yeah', 'okay', 'sure', 'right']
 BLACKLIST = []
 
@@ -113,38 +124,31 @@ if __name__ == '__main__':
     skip = 200      # Skip intents with number of samples less than skip
 
     # Prepare a correct classification counter
-    correct = {}
-    for intent in data:
-        if len(data[intent]) >= skip:
-            correct[intent] = [list() for _ in range(num_epochs)]
+    correct = {intent: [[] for _ in range(num_epochs)]
+               for intent, cont in data.items() if len(cont) >= skip}
 
     # Start an epoch
     epoch = 1
     while epoch < num_epochs+1:
-        print('=====Epoch {}====='.format(epoch))
+        print(f'=====Epoch {epoch}=====')
 
         # Split the data
         trn, tst = split_data_absolute(data, increment, skip_size=skip)
-        intents = {}
-        scores = {}
-        for intent in tst:
-            intents[intent] = [None]*len(tst[intent])
-            scores[intent] = [0]*len(tst[intent])
+        intents = {intent: [None]*len(val) for intent, val in tst.items()}
+        scores = {intent: [0]*len(val) for intent, val in tst.items()}
 
         # Start iterating
         it = 1
         while it < num_iters+1:
-            print('Iteration {} - Training size: {}'.format(it, it*increment))
+            print(f'Iteration {it} - Training size: {it * increment}')
 
             # Compute training set embeddings
-            trnv = {}
-            for intent in trn:
-                trnv[intent] = model.transform_sentences(trn[intent])
+            trnv = {intent: model.transform_sentences(val) for intent, val in trn.items()}
 
             # Compute testing set embeddings
-            for intent in tst:
+            for intent, val in tst.items():
                 correct[intent][epoch-1].append(0)
-                tstv = model.transform_sentences(tst[intent])
+                tstv = model.transform_sentences(val)
 
                 # Find best matching intent for each sample in the testing set
                 for i in range(len(tstv)):
@@ -163,12 +167,11 @@ if __name__ == '__main__':
             it += 1
         epoch += 1
 
-    # TODO: Change to F1 scores.
-    # TODO: Change to numpy arrays.
+    # ToDo: Change to F1 scores.
+    # ToDo: Change to numpy arrays.
 
     # Compute average correct counts and standard deviations
-    avg = {}
-    std = {}
+    avg, std = dict(), dict()
     for intent in correct:
         avg[intent] = [sum(e) for e in zip(*correct[intent])]
         avg[intent] = [e/num_epochs for e in avg[intent]]
@@ -180,7 +183,7 @@ if __name__ == '__main__':
     ax = plt.subplot(111)
 
     # Plot uncertainties
-    avg_rate = {}
+    avg_rate = dict()
     sizes = list(range(increment, num_iters * increment + 1, increment))
     for intent in sorted(avg):
         data_size = len(data[intent])
@@ -195,7 +198,7 @@ if __name__ == '__main__':
     # Plot averages
     for intent in sorted(avg):
         data_size = len(data[intent])
-        ax.plot(sizes, avg_rate[intent], label='{} ({})'.format(intent, data_size), lw=2)
+        ax.plot(sizes, avg_rate[intent], label=f'{intent} ({data_size})', lw=2)
 
     # Plot settings
     ax.grid(True)
