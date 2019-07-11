@@ -259,7 +259,7 @@ def batcher(params, batch):
     return embeddings
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     print('Loading model...')
     timer_start = timer()
     params_senteval = DotDict({'usepytorch': True, 'classifier': 'LogReg', 'nhid': 0,
