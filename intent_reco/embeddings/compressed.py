@@ -1,7 +1,19 @@
-import numpy as np
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.embeddings.compressed
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Wrappers for compressed embedding models.
+
+    @author: tomas.brich@seznam.cz
+"""
+
 import pickle
+
+import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
+from intent_reco import VERBOSE
 from intent_reco.embeddings.base import EmbeddingModelBase
 
 
@@ -10,18 +22,17 @@ class CompressedModel(EmbeddingModelBase):
     Wrapper for loading compressed models.
     :param emb_path: path to the embeddings file
     :param cb_path: path to the codebook
-    :param verbose: verbosity (mostly OOV warnings)
     """
-    def __init__(self, emb_path, cb_path, verbose=False):
-        super().__init__(verbose=verbose)
+    def __init__(self, emb_path, cb_path):
+        super().__init__()
 
         self.normalized = None
         self.distinct_cb = None
         self.decode_func = None
 
         self.words = None
-        self.vocab = {}
-        self.sizes = {}
+        self.vocab = dict()
+        self.sizes = dict()
 
         self.cb = []
         self.cb_size = None
@@ -38,13 +49,12 @@ class CompressedModel(EmbeddingModelBase):
         :param emb_path: path to the embeddings file
         :param cb_path: path to the codebook
         """
+
         with open(cb_path) as f:
             header = f.readline().split()
             self.cb_size = int(header[0])
             self.cb_dim = int(header[1])
-            for line in f:
-                vec = np.asarray(line.strip().split(), dtype=np.float)
-                self.cb.append(vec)
+            self.cb = [np.asarray(line.strip().split(), dtype=np.float) for line in f]
         int_type = np.uint16 if self.cb_size > 256 else np.uint8
 
         with open(emb_path) as f:
@@ -68,7 +78,7 @@ class CompressedModel(EmbeddingModelBase):
                 vec = np.asarray(tmp[-cmp_dim:], dtype=int_type)
 
                 if w.startswith('__label__'):
-                    w = w.replace('__label__', '')
+                    w = w.lstrip('__label__')
                     self.labels.append(w)
                     self.label_vectors.append(self.decode_func(vec) * size)
                 else:
@@ -81,6 +91,7 @@ class CompressedModel(EmbeddingModelBase):
         :param word: input word
         :return: word numpy vector
         """
+
         try:
             vec = self.decode_func(self.vocab[word])
             if self.normalized:
@@ -95,11 +106,10 @@ class CompressedModel(EmbeddingModelBase):
         :param sentences: list of sentences to classify
         :return: list of classes
         """
-        labels = []
+
         vectors = self.transform_sentences(sentences)
-        for vec in vectors:
-            sim = cosine_similarity(vec.reshape(1, -1), self.label_vectors)
-            labels.append(self.labels[np.asscalar(np.argmax(sim))])
+        labels = [self.labels[np.argmax(cosine_similarity(vec.reshape(1, -1), self.label_vectors)).item()]
+                  for vec in vectors]
         return labels
 
     def decode_vec(self, vec):
@@ -108,9 +118,8 @@ class CompressedModel(EmbeddingModelBase):
         :param vec: numpy vector
         :return: decoded numpy vector
         """
-        out = []
-        for idx in vec:
-            out.append(self.cb[idx])
+
+        out = [self.cb[idx] for idx in vec]
         return np.concatenate(out)
 
     def decode_vec_distinct(self, vec):
@@ -119,9 +128,8 @@ class CompressedModel(EmbeddingModelBase):
         :param vec: numpy vector
         :return: decoded numpy vector
         """
-        out = []
-        for i, idx in enumerate(vec):
-            out.append(self.cb[i * self.cb_size + idx])
+
+        out = [self.cb[i * self.cb_size + idx] for i, idx in enumerate(vec)]
         return np.concatenate(out)
 
 
@@ -129,10 +137,9 @@ class CompressedModelPickled(CompressedModel):
     """
     Wrapper for loading pickled compressed models.
     :param emb_path: path to the pickled compressed model
-    :param verbose: verbosity (mostly OOV warnings)
     """
-    def __init__(self, emb_path, verbose=False):
-        super().__init__(emb_path=emb_path, cb_path=None, verbose=verbose)
+    def __init__(self, emb_path):
+        super().__init__(emb_path=emb_path, cb_path=None)
 
     def load_model(self, emb_path, cb_path):
         """
@@ -140,6 +147,7 @@ class CompressedModelPickled(CompressedModel):
         :param emb_path: path to the pickled compressed model
         :param cb_path: (not used, inherited from superclass)
         """
+
         with open(emb_path, 'rb') as f:
             data = pickle.load(f)
 
@@ -165,10 +173,9 @@ class CompressedModelSWPickled(CompressedModelPickled):
     Wrapper for loading pickled compressed models containing subword embeddings.
     :param emb_path: path to the pickled compressed model
     :param sw_path: path to the pickled compressed subwords
-    :param verbose: verbosity (mostly OOV warnings)
     """
-    def __init__(self, emb_path, sw_path, verbose=False):
-        super().__init__(emb_path=emb_path, verbose=verbose)
+    def __init__(self, emb_path, sw_path):
+        super().__init__(emb_path=emb_path)
 
         with open(sw_path, 'rb') as f:
             data = pickle.load(f)
@@ -190,7 +197,8 @@ class CompressedModelSWPickled(CompressedModelPickled):
         :param word: oov word
         :return: oov word numpy vector
         """
-        if self.verbose:
+
+        if VERBOSE:
             print('Creating embedding for OOV word:', word)
 
         sws = self.get_subwords(word)
@@ -214,6 +222,7 @@ class CompressedModelSWPickled(CompressedModelPickled):
         :param nmax: upper bound on n
         :return: list of n-grams in <word>
         """
+
         word = '<' + word + '>'
         return [word[i:j] for i in range(len(word))
                 for j in range(i + nmin, 1 + min(i + nmax, len(word)))]
@@ -224,9 +233,8 @@ class CompressedModelSWPickled(CompressedModelPickled):
         :param vec: numpy vector
         :return: decoded numpy vector
         """
-        out = []
-        for idx in vec:
-            out.append(self.sw_cb[idx])
+
+        out = [self.sw_cb[idx] for idx in vec]
         return np.concatenate(out)
 
     def decode_sw_vec_distinct(self, vec):
@@ -235,9 +243,8 @@ class CompressedModelSWPickled(CompressedModelPickled):
         :param vec: numpy vector
         :return: decoded numpy vector
         """
-        out = []
-        for i, idx in enumerate(vec):
-            out.append(self.sw_cb[i * self.sw_cb_size + idx])
+
+        out = [self.sw_cb[i * self.sw_cb_size + idx] for i, idx in enumerate(vec)]
         return np.concatenate(out)
 
 
@@ -248,6 +255,7 @@ def decode_compressed_model(model_path, cb_path, out_path):
     :param cb_path: path to the codebook
     :param out_path: path of the output text file
     """
+
     from tqdm import tqdm
     model = CompressedModel(model_path, cb_path)
     out = [str(model.words) + ' ' + str(model.dim) + '\n']
@@ -272,6 +280,7 @@ def pickle_compressed_model(model_path, cb_path, out_path):
     :param cb_path: path to the codebook
     :param out_path: path of the output pickle file
     """
+
     model = CompressedModel(model_path, cb_path)
     data = {'vectors': model.vocab,
             'norms': model.sizes,

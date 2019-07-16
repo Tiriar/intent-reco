@@ -1,16 +1,23 @@
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.embeddings.base
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Base classes for the embedding algorithms.
+
+    @author: tomas.brich@seznam.cz
+"""
+
 import numpy as np
 from nltk import TweetTokenizer
 
+from intent_reco import VERBOSE
 from intent_reco.utils.preprocessing import tokenize
 
 
 class EmbeddingModelBase:
-    """
-    Baseline for the embedding algorithms.
-    :param verbose: verbosity (mostly OOV warnings)
-    """
-    def __init__(self, verbose=False):
-        self.verbose = verbose
+    """Baseline for the embedding algorithms."""
+    def __init__(self):
         self.tokenizer = TweetTokenizer()
         self.dim = None
 
@@ -20,6 +27,7 @@ class EmbeddingModelBase:
         :param word: input word
         :return: word numpy vector
         """
+
         raise NotImplementedError
 
     def transform_sentence(self, sentence):
@@ -28,11 +36,10 @@ class EmbeddingModelBase:
         :param sentence: input sentence
         :return: sentence numpy vector
         """
+
         s = tokenize(sentence, tknzr=self.tokenizer, to_lower=True)
         tokens = s.split()
-        vectors = []
-        for token in tokens:
-            vectors.append(self.transform_word(token))
+        vectors = [self.transform_word(token) for token in tokens]
         return np.average(vectors, axis=0)
 
     def transform_sentences(self, sentences):
@@ -41,6 +48,7 @@ class EmbeddingModelBase:
         :param sentences: list of sentences
         :return: list of numpy vectors
         """
+
         return [self.transform_sentence(s) for s in sentences]
 
     def handle_oov(self, word):
@@ -49,6 +57,7 @@ class EmbeddingModelBase:
         :param word: oov word
         :return: oov word numpy vector
         """
-        if self.verbose:
+
+        if VERBOSE:
             print('-- WARNING:', word, 'not in vocabulary!')
         return np.zeros((self.dim,))

@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.embeddings.fasttext
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    FastText embedding algorithm wrappers.
+
+    @author: tomas.brich@seznam.cz
+"""
+
 import fastText
 
 from intent_reco.embeddings.base import EmbeddingModelBase
@@ -8,10 +18,9 @@ class FastText(EmbeddingModelBase):
     """
     FastText embedding algorithm.
     :param emb_path: path to the binary embeddings file (model.bin)
-    :param verbose: verbosity (mostly OOV warnings)
     """
-    def __init__(self, emb_path, verbose=False):
-        super().__init__(verbose=verbose)
+    def __init__(self, emb_path):
+        super().__init__()
         self.model = fastText.load_model(emb_path)
         self.dim = self.model.get_dimension()
 
@@ -21,6 +30,7 @@ class FastText(EmbeddingModelBase):
         :param word: input word
         :return: word numpy vector
         """
+
         return self.model.get_word_vector(word)
 
     # def transform_sentence(self, sentence):
@@ -29,6 +39,7 @@ class FastText(EmbeddingModelBase):
     #     :param sentence: input sentence
     #     :return: sentence numpy vector
     #     """
+    #
     #     return self.model.get_sentence_vector(sentence)
 
     def classify_sentences(self, sentences):
@@ -37,8 +48,9 @@ class FastText(EmbeddingModelBase):
         :param sentences: list of sentences to classify
         :return: list of classes
         """
+
         labels = self.model.predict(tokenize_sentences(sentences))[0]
-        return [w[0].replace('__label__', '') for w in labels]
+        return [w[0].lstrip('__label__') for w in labels]
 
 
 def get_ft_subwords(path):
@@ -46,15 +58,17 @@ def get_ft_subwords(path):
     Brute-forces the subword embeddings from a FastText binary model
     and writes them to 'subwords.txt' in a word2vec format.
     The subwords are sorted by (length, frequency).
+    ToDo: Should we sort by frequency only?
     :param path: path to the binary file
     """
+
     from tqdm import tqdm
 
     ft = fastText.load_model(path)
     vocab = ft.get_words()
     vocab_len = len(vocab)
-    subwords = {}
-    sw_ids = {}
+    subwords = dict()
+    sw_ids = dict()
 
     print('Processing', vocab_len, 'words...')
     for word in tqdm(vocab, mininterval=1.0):

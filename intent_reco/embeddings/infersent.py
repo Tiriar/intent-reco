@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.embeddings.infersent
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    InferSent embedding algorithm wrappers.
+
+    @author: tomas.brich@seznam.cz
+"""
+
 import torch
 
 import intent_reco.embeddings.infersent_models as im
@@ -23,7 +33,7 @@ class InferSent:
         if vocab_data:
             self.model.build_vocab(vocab_data, tokenize=True)
         else:
-            self.model.build_vocab_k_words(K=k)
+            self.model.build_vocab_k_words(thr=k)
 
     def transform_sentences(self, sentences):
         """
@@ -31,6 +41,7 @@ class InferSent:
         :param sentences: list of sentences
         :return: list of numpy vectors
         """
+
         return self.model.encode(sentences, tokenize=True)
 
     def visualize(self, sentence):
@@ -38,4 +49,5 @@ class InferSent:
         Visualize the importance of each word in a sentence.
         :param sentence: input sentence
         """
+
         self.model.visualize(sentence, tokenize=True)

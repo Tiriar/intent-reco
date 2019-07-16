@@ -1,6 +1,17 @@
-from gensim.models import Word2Vec, KeyedVectors
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.embeddings.word2vec
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Word2Vec embedding algorithm wrappers.
+
+    @author: tomas.brich@seznam.cz
+"""
+
+from gensim.models import KeyedVectors, Word2Vec
 from nltk.stem.snowball import SnowballStemmer
 
+from intent_reco import VERBOSE
 from intent_reco.embeddings.base import EmbeddingModelBase
 
 
@@ -11,10 +22,9 @@ class WordEmbedding(EmbeddingModelBase):
     :param algorithm: word2vec or fasttext (default word2vec)
     :param gensim_trained: the model was trained using Gensim
     :param k: number of vectors to load to vocabulary (works only for FastText)
-    :param verbose: verbosity (mostly OOV warnings)
     """
-    def __init__(self, emb_path, algorithm='word2vec', gensim_trained=False, k=None, verbose=False):
-        super().__init__(verbose=verbose)
+    def __init__(self, emb_path, algorithm='word2vec', gensim_trained=False, k=None):
+        super().__init__()
 
         assert algorithm in ['word2vec', 'fasttext']
         if algorithm == 'word2vec':
@@ -35,11 +45,9 @@ class WordEmbedding(EmbeddingModelBase):
         :param word: input word
         :return: word numpy vector
         """
+
         try:
-            if self.gensim_trained:
-                return self.model.wv[word]
-            else:
-                return self.model.word_vec(word)
+            return self.model.wv[word] if self.gensim_trained else self.model.word_vec(word)
         except KeyError:
             return self.handle_oov(word)
 
@@ -49,15 +57,13 @@ class WordEmbedding(EmbeddingModelBase):
         :param word: oov word
         :return: oov word numpy vector
         """
+
         stemmed = self.stemmer.stem(word)
         if word != stemmed:
             try:
-                if self.gensim_trained:
-                    return self.model.wv[stemmed]
-                else:
-                    return self.model.word_vec(stemmed)
+                return self.model.wv[stemmed] if self.gensim_trained else self.model.word_vec(stemmed)
             except KeyError:
-                if self.verbose:
+                if VERBOSE:
                     print('-- WARNING:', stemmed, '(stemmed) not in vocabulary!')
         return super().handle_oov(word)
 
@@ -76,14 +82,13 @@ def train_word2vec(path, name='w2v_model', dim=300, epoch=16, hs=0, neg=5, sg=0,
                0 --> CBOW
     :param threads: number of CPU threads to use
     """
+
     if hs > 0:
         neg = 0
 
-    sentences = []
     with open(path, 'r') as f:
-        for line in f:
-            line = line.split()
-            sentences.append(line)
+        sentences = [line.split() for line in f]
+
     model = Word2Vec(sentences, min_count=1, size=dim, iter=epoch,
                      hs=hs, negative=neg, sg=sg, workers=threads)
     model.save(name)

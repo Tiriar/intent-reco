@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.embeddings.glove
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    GloVe embedding algorithm wrappers.
+
+    @author: tomas.brich@seznam.cz
+"""
+
 import numpy as np
 import spacy
 from glove import Glove
@@ -9,10 +19,9 @@ class GloVe(EmbeddingModelBase):
     """
     GloVe embedding algorithm from glove-python package.
     :param emb_path: path to the embeddings file
-    :param verbose: verbosity (mostly OOV warnings)
     """
-    def __init__(self, emb_path, verbose=False):
-        super().__init__(verbose=verbose)
+    def __init__(self, emb_path):
+        super().__init__()
         self.model = Glove.load_stanford(emb_path)
         self.dim = self.model.word_vectors.shape[1]
 
@@ -22,6 +31,7 @@ class GloVe(EmbeddingModelBase):
         :param word: input word
         :return: word numpy vector
         """
+
         try:
             idx = self.model.dictionary[word]
             return self.model.word_vectors[idx]
@@ -33,10 +43,9 @@ class GloVeSpacy(EmbeddingModelBase):
     """
     GloVe embedding algorithm included in SpaCy package.
     :param emb_path: path to the embeddings file
-    :param verbose: verbosity (mostly OOV warnings)
     """
-    def __init__(self, emb_path, verbose=False):
-        super().__init__(verbose=verbose)
+    def __init__(self, emb_path):
+        super().__init__()
 
         self.model = spacy.blank('en')
         with open(emb_path, 'rb') as f:
@@ -62,6 +71,7 @@ class GloVeSpacy(EmbeddingModelBase):
         :param word: input word
         :return: word numpy vector
         """
+
         w = word.lower()
         tmp = self.model(w)
         return tmp.vector
@@ -72,4 +82,5 @@ class GloVeSpacy(EmbeddingModelBase):
         :param sentence: input sentence
         :return: sentence numpy vector
         """
+
         return self.transform_word(sentence)

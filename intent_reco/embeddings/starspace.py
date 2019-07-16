@@ -1,5 +1,16 @@
-import numpy as np
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.embeddings.starspace
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    StarSpace embedding algorithm wrappers.
+
+    @author: tomas.brich@seznam.cz
+"""
+
 import csv
+
+import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 from intent_reco.embeddings.base import EmbeddingModelBase
@@ -10,12 +21,11 @@ class StarSpace(EmbeddingModelBase):
     StarSpace embedding algorithm.
     :param emb_path: path to the embeddings file
     :param k: number of vectors to load to vocabulary
-    :param verbose: verbosity (mostly OOV warnings)
     """
-    def __init__(self, emb_path, k=None, verbose=False):
-        super().__init__(verbose=verbose)
+    def __init__(self, emb_path, k=None):
+        super().__init__()
 
-        self.vocab = {}
+        self.vocab = dict()
         self.labels = []
         self.label_vectors = []
 
@@ -26,7 +36,7 @@ class StarSpace(EmbeddingModelBase):
                     w = row[0]
                     vec = np.asarray(row[1:], dtype=np.float)
                     if w.startswith('__label__'):
-                        w = w.replace('__label__', '')
+                        w = w.lstrip('__label__')
                         self.labels.append(w)
                         self.label_vectors.append(vec)
                     else:
@@ -41,6 +51,7 @@ class StarSpace(EmbeddingModelBase):
         :param word: input word
         :return: word numpy vector
         """
+
         try:
             return self.vocab[word]
         except KeyError:
@@ -52,9 +63,8 @@ class StarSpace(EmbeddingModelBase):
         :param sentences: list of sentences to classify
         :return: list of classes
         """
-        labels = []
+
         vectors = self.transform_sentences(sentences)
-        for vec in vectors:
-            sim = cosine_similarity(vec.reshape(1, -1), self.label_vectors)
-            labels.append(self.labels[np.asscalar(np.argmax(sim))])
+        labels = [self.labels[np.argmax(cosine_similarity(vec.reshape(1, -1), self.label_vectors)).item()]
+                  for vec in vectors]
         return labels

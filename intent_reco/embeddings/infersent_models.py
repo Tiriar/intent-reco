@@ -1,26 +1,23 @@
-# Copyright (c) 2017-present, Facebook, Inc.
-# All rights reserved.
-#
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-#
-
+# -*- coding: utf-8 -*-
 """
-This file contains the definition of encoders used in https://arxiv.org/pdf/1705.02364.pdf
+    intent_reco.embeddings.infersent_models
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Definition of encoders used in https://arxiv.org/pdf/1705.02364.pdf.
+
+    Copyright (c) 2017-present, Facebook, Inc.
 """
 
-import numpy as np
 import time
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
 
 class InferSent(nn.Module):
-    """
-    BLSTM (max/mean) encoder
-    """
+    """BLSTM (max/mean) encoder."""
     def __init__(self, config):
         super(InferSent, self).__init__()
         self.bsize = config['bsize']
@@ -30,8 +27,7 @@ class InferSent(nn.Module):
         self.dpout_model = config['dpout_model']
         self.version = 1 if 'version' not in config else config['version']
 
-        self.enc_lstm = nn.LSTM(self.word_emb_dim, self.enc_lstm_dim, 1,
-                                bidirectional=True, dropout=self.dpout_model)
+        self.enc_lstm = nn.LSTM(self.word_emb_dim, self.enc_lstm_dim, 1, bidirectional=True, dropout=self.dpout_model)
 
         assert self.version in [1, 2]
         if self.version == 1:
@@ -61,8 +57,7 @@ class InferSent(nn.Module):
         sent_len_sorted, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
         idx_unsort = np.argsort(idx_sort)
 
-        idx_sort = torch.from_numpy(idx_sort).cuda() if self.is_cuda() \
-            else torch.from_numpy(idx_sort)
+        idx_sort = torch.from_numpy(idx_sort).cuda() if self.is_cuda() else torch.from_numpy(idx_sort)
         sent = sent.index_select(1, Variable(idx_sort))
 
         # Handling padding in Recurrent Networks
@@ -71,8 +66,7 @@ class InferSent(nn.Module):
         sent_output = nn.utils.rnn.pad_packed_sequence(sent_output)[0]
 
         # Un-sort by length
-        idx_unsort = torch.from_numpy(idx_unsort).cuda() if self.is_cuda() \
-            else torch.from_numpy(idx_unsort)
+        idx_unsort = torch.from_numpy(idx_unsort).cuda() if self.is_cuda() else torch.from_numpy(idx_unsort)
         sent_output = sent_output.index_select(1, Variable(idx_unsort))
 
         # Pooling
@@ -96,7 +90,7 @@ class InferSent(nn.Module):
 
     def get_word_dict(self, sentences, tokenize=True):
         # create vocab of words
-        word_dict = {}
+        word_dict = dict()
         sentences = [s.split() if not tokenize else self.tokenize(s) for s in sentences]
         for sent in sentences:
             for word in sent:
@@ -109,45 +103,44 @@ class InferSent(nn.Module):
     def get_w2v(self, word_dict):
         assert hasattr(self, 'w2v_path'), 'w2v path not set'
         # create word_vec with w2v vectors
-        word_vec = {}
+        word_vec = dict()
         with open(self.w2v_path) as f:
             for line in f:
                 word, vec = line.split(' ', 1)
                 if word in word_dict:
                     word_vec[word] = np.fromstring(vec, sep=' ')
-        print('Found %s(/%s) words with w2v vectors' % (len(word_vec), len(word_dict)))
+        print(f'Found {len(word_vec)}(/{len(word_dict)}) words with w2v vectors')
         return word_vec
 
-    def get_w2v_k(self, K):
+    def get_w2v_k(self, thr):
         assert hasattr(self, 'w2v_path'), 'w2v path not set'
         # create word_vec with k first w2v vectors
         k = 0
-        word_vec = {}
+        word_vec = dict()
         with open(self.w2v_path) as f:
             for line in f:
                 word, vec = line.split(' ', 1)
-                if k <= K:
+                if k <= thr:
                     word_vec[word] = np.fromstring(vec, sep=' ')
                     k += 1
-                if k > K:
+                if k > thr:
                     if word in [self.bos, self.eos]:
                         word_vec[word] = np.fromstring(vec, sep=' ')
-
-                if k > K and all([w in word_vec for w in [self.bos, self.eos]]):
-                    break
+                    if all([w in word_vec for w in [self.bos, self.eos]]):
+                        break
         return word_vec
 
     def build_vocab(self, sentences, tokenize=True):
         assert hasattr(self, 'w2v_path'), 'w2v path not set'
         word_dict = self.get_word_dict(sentences, tokenize)
         self.word_vec = self.get_w2v(word_dict)
-        print('Vocab size : %s' % (len(self.word_vec)))
+        print('Vocab size:', (len(self.word_vec)))
 
-    # build w2v vocab with k most frequent words
-    def build_vocab_k_words(self, K):
+    def build_vocab_k_words(self, thr):
+        # build w2v vocab with thr most frequent words
         assert hasattr(self, 'w2v_path'), 'w2v path not set'
-        self.word_vec = self.get_w2v_k(K)
-        print('Vocab size : %s' % K)
+        self.word_vec = self.get_w2v_k(thr)
+        print('Vocab size:', thr)
 
     def update_vocab(self, sentences, tokenize=True):
         assert hasattr(self, 'w2v_path'), 'warning : w2v path not set'
@@ -159,13 +152,13 @@ class InferSent(nn.Module):
             if word in word_dict:
                 del word_dict[word]
 
-        # udpate vocabulary
+        # update vocabulary
         if word_dict:
             new_word_vec = self.get_w2v(word_dict)
             self.word_vec.update(new_word_vec)
         else:
             new_word_vec = []
-        print('New vocab size : %s (added %s words)' % (len(self.word_vec), len(new_word_vec)))
+        print(f'New vocab size : {len(self.word_vec)} (added {len(new_word_vec)} words)')
 
     def get_batch(self, batch):
         # sent in batch in decreasing order of lengths
@@ -187,7 +180,7 @@ class InferSent(nn.Module):
         else:
             return word_tokenize(s)
 
-    def prepare_samples(self, sentences, bsize, tokenize, verbose):
+    def prepare_samples(self, sentences, tokenize, verbose):
         sentences = [[self.bos] + s.split() + [self.eos] if not tokenize else
                      [self.bos] + self.tokenize(s) + [self.eos] for s in sentences]
         n_w = np.sum([len(x) for x in sentences])
@@ -205,8 +198,7 @@ class InferSent(nn.Module):
         lengths = np.array([len(s) for s in sentences])
         n_wk = np.sum(lengths)
         if verbose:
-            print('Nb words kept : %s/%s (%.1f%s)' % (
-                        n_wk, n_w, 100.0 * n_wk / n_w, '%'))
+            print('Nb words kept : %s/%s (%.1f%s)' % (n_wk, n_w, 100.0 * n_wk / n_w, '%'))
 
         # sort by decreasing length
         lengths, idx_sort = np.sort(lengths)[::-1], np.argsort(-lengths)
@@ -216,17 +208,14 @@ class InferSent(nn.Module):
 
     def encode(self, sentences, bsize=64, tokenize=True, verbose=False):
         tic = time.time()
-        sentences, lengths, idx_sort = self.prepare_samples(
-                        sentences, bsize, tokenize, verbose)
+        sentences, lengths, idx_sort = self.prepare_samples(sentences, tokenize, verbose)
 
         embeddings = []
         for stidx in range(0, len(sentences), bsize):
-            batch = Variable(self.get_batch(
-                        sentences[stidx:stidx + bsize]), volatile=True)
+            batch = Variable(self.get_batch(sentences[stidx:stidx + bsize]), volatile=True)
             if self.is_cuda():
                 batch = batch.cuda()
-            batch = self.forward(
-                (batch, lengths[stidx:stidx + bsize])).data.cpu().numpy()
+            batch = self.forward((batch, lengths[stidx:stidx + bsize])).data.cpu().numpy()
             embeddings.append(batch)
         embeddings = np.vstack(embeddings)
 
@@ -236,16 +225,14 @@ class InferSent(nn.Module):
 
         if verbose:
             print('Speed : %.1f sentences/s (%s mode, bsize=%s)' % (
-                    len(embeddings)/(time.time()-tic),
-                    'gpu' if self.is_cuda() else 'cpu', bsize))
+                len(embeddings)/(time.time()-tic), 'gpu' if self.is_cuda() else 'cpu', bsize))
         return embeddings
 
     def visualize(self, sent, tokenize=True):
-
         sent = sent.split() if not tokenize else self.tokenize(sent)
         sent = [[self.bos] + [word for word in sent if word in self.word_vec] + [self.eos]]
 
-        if ' '.join(sent[0]) == '%s %s' % (self.bos, self.eos):
+        if ' '.join(sent[0]) == f'{self.bos} {self.eos}':
             import warnings
             warnings.warn('No words in "%s" have w2v vectors. Replacing \
                            by "%s %s"..' % (sent, self.bos, self.eos))
@@ -273,9 +260,7 @@ class InferSent(nn.Module):
 
 
 class BGRUlastEncoder(nn.Module):
-    """
-    BiGRU encoder (first/last hidden states)
-    """
+    """BiGRU encoder (first/last hidden states)."""
     def __init__(self, config):
         super(BGRUlastEncoder, self).__init__()
         self.bsize = config['bsize']
@@ -284,10 +269,8 @@ class BGRUlastEncoder(nn.Module):
         self.pool_type = config['pool_type']
         self.dpout_model = config['dpout_model']
 
-        self.enc_lstm = nn.GRU(self.word_emb_dim, self.enc_lstm_dim, 1,
-                               bidirectional=True, dropout=self.dpout_model)
-        self.init_lstm = Variable(torch.FloatTensor(2, self.bsize,
-                                  self.enc_lstm_dim).zero_()).cuda()
+        self.enc_lstm = nn.GRU(self.word_emb_dim, self.enc_lstm_dim, 1, bidirectional=True, dropout=self.dpout_model)
+        self.init_lstm = Variable(torch.FloatTensor(2, self.bsize, self.enc_lstm_dim).zero_()).cuda()
 
     def forward(self, sent_tuple):
         # sent_len: [max_len, ..., min_len] (batch)
@@ -316,9 +299,7 @@ class BGRUlastEncoder(nn.Module):
 
 
 class BLSTMprojEncoder(nn.Module):
-    """
-    BLSTM encoder with projection after BiLSTM
-    """
+    """BLSTM encoder with projection after BiLSTM."""
     def __init__(self, config):
         super(BLSTMprojEncoder, self).__init__()
         self.bsize = config['bsize']
@@ -327,12 +308,9 @@ class BLSTMprojEncoder(nn.Module):
         self.pool_type = config['pool_type']
         self.dpout_model = config['dpout_model']
 
-        self.enc_lstm = nn.LSTM(self.word_emb_dim, self.enc_lstm_dim, 1,
-                                bidirectional=True, dropout=self.dpout_model)
-        self.init_lstm = Variable(torch.FloatTensor(2, self.bsize,
-                                  self.enc_lstm_dim).zero_()).cuda()
-        self.proj_enc = nn.Linear(2*self.enc_lstm_dim, 2*self.enc_lstm_dim,
-                                  bias=False)
+        self.enc_lstm = nn.LSTM(self.word_emb_dim, self.enc_lstm_dim, 1, bidirectional=True, dropout=self.dpout_model)
+        self.init_lstm = Variable(torch.FloatTensor(2, self.bsize, self.enc_lstm_dim).zero_()).cuda()
+        self.proj_enc = nn.Linear(2*self.enc_lstm_dim, 2*self.enc_lstm_dim, bias=False)
 
     def forward(self, sent_tuple):
         # sent_len: [max_len, ..., min_len] (batch)
@@ -350,16 +328,15 @@ class BLSTMprojEncoder(nn.Module):
 
         # Handling padding in Recurrent Networks
         sent_packed = nn.utils.rnn.pack_padded_sequence(sent, sent_len)
-        sent_output = self.enc_lstm(sent_packed,
-                                    (self.init_lstm, self.init_lstm))[0]
+        sent_output = self.enc_lstm(sent_packed, (self.init_lstm, self.init_lstm))[0]
         # seqlen x batch x 2*nhid
         sent_output = nn.utils.rnn.pad_packed_sequence(sent_output)[0]
 
         # Un-sort by length
         idx_unsort = np.argsort(idx_sort)
         sent_output = sent_output.index_select(1, Variable(torch.cuda.LongTensor(idx_unsort)))
-
         sent_output = self.proj_enc(sent_output.view(-1, 2*self.enc_lstm_dim)).view(-1, bsize, 2*self.enc_lstm_dim)
+
         # Pooling
         emb = None
         if self.pool_type == "mean":
@@ -373,9 +350,7 @@ class BLSTMprojEncoder(nn.Module):
 
 
 class LSTMEncoder(nn.Module):
-    """
-    LSTM encoder
-    """
+    """LSTM encoder."""
     def __init__(self, config):
         super(LSTMEncoder, self).__init__()
         self.bsize = config['bsize']
@@ -384,8 +359,7 @@ class LSTMEncoder(nn.Module):
         self.pool_type = config['pool_type']
         self.dpout_model = config['dpout_model']
 
-        self.enc_lstm = nn.LSTM(self.word_emb_dim, self.enc_lstm_dim, 1,
-                                bidirectional=False, dropout=self.dpout_model)
+        self.enc_lstm = nn.LSTM(self.word_emb_dim, self.enc_lstm_dim, 1, bidirectional=False, dropout=self.dpout_model)
         self.init_lstm = Variable(torch.FloatTensor(1, self.bsize, self.enc_lstm_dim).zero_()).cuda()
 
     def forward(self, sent_tuple):
@@ -414,9 +388,7 @@ class LSTMEncoder(nn.Module):
 
 
 class GRUEncoder(nn.Module):
-    """
-    GRU encoder
-    """
+    """GRU encoder."""
     def __init__(self, config):
         super(GRUEncoder, self).__init__()
         self.bsize = config['bsize']
@@ -425,8 +397,7 @@ class GRUEncoder(nn.Module):
         self.pool_type = config['pool_type']
         self.dpout_model = config['dpout_model']
 
-        self.enc_lstm = nn.GRU(self.word_emb_dim, self.enc_lstm_dim, 1,
-                               bidirectional=False, dropout=self.dpout_model)
+        self.enc_lstm = nn.GRU(self.word_emb_dim, self.enc_lstm_dim, 1, bidirectional=False, dropout=self.dpout_model)
         self.init_lstm = Variable(torch.FloatTensor(1, self.bsize, self.enc_lstm_dim).zero_()).cuda()
 
     def forward(self, sent_tuple):
@@ -457,9 +428,7 @@ class GRUEncoder(nn.Module):
 
 
 class InnerAttentionNAACLEncoder(nn.Module):
-    """
-    Inner attention from "hierarchical attention for document classification"
-    """
+    """Inner attention from 'hierarchical attention for document classification'"""
     def __init__(self, config):
         super(InnerAttentionNAACLEncoder, self).__init__()
         self.bsize = config['bsize']
@@ -468,13 +437,10 @@ class InnerAttentionNAACLEncoder(nn.Module):
         self.pool_type = config['pool_type']
 
         self.enc_lstm = nn.LSTM(self.word_emb_dim, self.enc_lstm_dim, 1, bidirectional=True)
-        self.init_lstm = Variable(torch.FloatTensor(2, self.bsize,
-                                  self.enc_lstm_dim).zero_()).cuda()
+        self.init_lstm = Variable(torch.FloatTensor(2, self.bsize, self.enc_lstm_dim).zero_()).cuda()
 
-        self.proj_key = nn.Linear(2*self.enc_lstm_dim, 2*self.enc_lstm_dim,
-                                  bias=False)
-        self.proj_lstm = nn.Linear(2*self.enc_lstm_dim, 2*self.enc_lstm_dim,
-                                   bias=False)
+        self.proj_key = nn.Linear(2*self.enc_lstm_dim, 2*self.enc_lstm_dim, bias=False)
+        self.proj_lstm = nn.Linear(2*self.enc_lstm_dim, 2*self.enc_lstm_dim, bias=False)
         self.query_embedding = nn.Embedding(1, 2*self.enc_lstm_dim)
         self.softmax = nn.Softmax()
 
@@ -530,9 +496,7 @@ class InnerAttentionNAACLEncoder(nn.Module):
 
 
 class InnerAttentionMILAEncoder(nn.Module):
-    """
-    Inner attention inspired from "Self-attentive ..."
-    """
+    """Inner attention inspired from 'Self-attentive ...'"""
     def __init__(self, config):
         super(InnerAttentionMILAEncoder, self).__init__()
         self.bsize = config['bsize']
@@ -606,19 +570,15 @@ class InnerAttentionMILAEncoder(nn.Module):
         emb4 = torch.sum(alphas4 * sent_output_proj, 1).squeeze(1)
 
         if int(time.time()) % 100 == 0:
-            print('alphas', torch.cat((alphas1.data[0, :, 0],
-                                       alphas2.data[0, :, 0],
-                                       torch.abs(alphas1.data[0, :, 0] -
-                                                 alphas2.data[0, :, 0])), 1))
+            print('alphas', torch.cat((alphas1.data[0, :, 0], alphas2.data[0, :, 0],
+                                       torch.abs(alphas1.data[0, :, 0] - alphas2.data[0, :, 0])), 1))
 
         emb = torch.cat((emb1, emb2, emb3, emb4), 1)
         return emb
 
 
 class InnerAttentionYANGEncoder(nn.Module):
-    """
-    Inner attention from Yang et al.
-    """
+    """Inner attention from Yang et al."""
     def __init__(self, config):
         super(InnerAttentionYANGEncoder, self).__init__()
         self.bsize = config['bsize']
@@ -670,11 +630,11 @@ class InnerAttentionYANGEncoder(nn.Module):
         sent_summary = self.proj_query(sent_max).unsqueeze(1).expand_as(sent_keys)
         # (bsize, seqlen, 2*nhid)
 
-        sent_M = torch.tanh(sent_keys + sent_summary)
-        # (bsize, seqlen, 2*nhid) YANG : M = tanh(Wh_i + Wh_avg
+        sent_m = torch.tanh(sent_keys + sent_summary)
+        # (bsize, seqlen, 2*nhid) YANG : M = tanh(Wh_i + Wh_avg)
         sent_w = self.query_embedding(Variable(torch.LongTensor(bsize*[0]).cuda())).unsqueeze(2)  # (bsize, 2*nhid, 1)
 
-        sent_alphas = self.softmax(sent_M.bmm(sent_w).squeeze(2)).unsqueeze(1)  # (bsize, 1, seqlen)
+        sent_alphas = self.softmax(sent_m.bmm(sent_w).squeeze(2)).unsqueeze(1)  # (bsize, 1, seqlen)
 
         if int(time.time()) % 200 == 0:
             print('w', torch.max(sent_w[0]), torch.min(sent_w[0]))
@@ -686,9 +646,7 @@ class InnerAttentionYANGEncoder(nn.Module):
 
 
 class ConvNetEncoder(nn.Module):
-    """
-    Hierarchical ConvNet
-    """
+    """Hierarchical ConvNet."""
     def __init__(self, config):
         super(ConvNetEncoder, self).__init__()
 
@@ -733,9 +691,7 @@ class ConvNetEncoder(nn.Module):
 
 
 class NLINet(nn.Module):
-    """
-    Main module for Natural Language Inference
-    """
+    """Main module for Natural Language Inference."""
     def __init__(self, config):
         super(NLINet, self).__init__()
 
@@ -749,8 +705,7 @@ class NLINet(nn.Module):
 
         self.encoder = eval(self.encoder_type)(config)
         self.inputdim = 4*2*self.enc_lstm_dim
-        self.inputdim = 4*self.inputdim \
-            if self.encoder_type in ["ConvNetEncoder", "InnerAttentionMILAEncoder"] \
+        self.inputdim = 4*self.inputdim if self.encoder_type in ["ConvNetEncoder", "InnerAttentionMILAEncoder"] \
             else self.inputdim
         self.inputdim = self.inputdim/2 if self.encoder_type == "LSTMEncoder" else self.inputdim
         if self.nonlinear_fc:
@@ -763,13 +718,13 @@ class NLINet(nn.Module):
                 nn.Tanh(),
                 nn.Dropout(p=self.dpout_fc),
                 nn.Linear(self.fc_dim, self.n_classes),
-                )
+            )
         else:
             self.classifier = nn.Sequential(
                 nn.Linear(self.inputdim, self.fc_dim),
                 nn.Linear(self.fc_dim, self.fc_dim),
                 nn.Linear(self.fc_dim, self.n_classes)
-                )
+            )
 
     def forward(self, s1, s2):
         # s1 : (s1, s1_len)
@@ -786,9 +741,7 @@ class NLINet(nn.Module):
 
 
 class ClassificationNet(nn.Module):
-    """
-    Main module for Classification
-    """
+    """Main module for Classification."""
     def __init__(self, config):
         super(ClassificationNet, self).__init__()
 
@@ -804,9 +757,7 @@ class ClassificationNet(nn.Module):
         self.inputdim = 2*self.enc_lstm_dim
         self.inputdim = 4*self.inputdim if self.encoder_type == "ConvNetEncoder" else self.inputdim
         self.inputdim = self.enc_lstm_dim if self.encoder_type == "LSTMEncoder" else self.inputdim
-        self.classifier = nn.Sequential(
-            nn.Linear(self.inputdim, 512),
-            nn.Linear(512, self.n_classes),)
+        self.classifier = nn.Sequential(nn.Linear(self.inputdim, 512), nn.Linear(512, self.n_classes),)
 
     def forward(self, s1):
         # s1 : (s1, s1_len)

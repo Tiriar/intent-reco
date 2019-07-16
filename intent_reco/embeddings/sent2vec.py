@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.embeddings.sent2vec
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Sent2Vec embedding algorithm wrappers.
+
+    @author: tomas.brich@seznam.cz
+"""
+
 import sent2vec
 
 from intent_reco.utils.preprocessing import tokenize_sentences
@@ -18,4 +28,5 @@ class Sent2Vec:
         :param sentences: list of sentences
         :return: list of numpy vectors
         """
+
         return [self.model.embed_sentence(s) for s in tokenize_sentences(sentences)]
