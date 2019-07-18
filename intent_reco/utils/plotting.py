@@ -1,7 +1,15 @@
-"""Functions used for plotting results."""
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.utils.plotting
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-import numpy as np
+    Functions used for plotting results.
+
+    @author: tomas.brich@seznam.cz
+"""
+
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.stats import pearsonr, spearmanr
 
 
@@ -10,6 +18,7 @@ def load_compression_results():
     Loads the compression results from results.txt for plotting.
     :return: dictionary of loaded data
     """
+
     d = {'base': {'chunks': [], 'cb_size': [], 'size': [], 'sp': [], 'pr': []},
          'norm': {'chunks': [], 'cb_size': [], 'size': [], 'sp': [], 'pr': []},
          'dist': {'chunks': [], 'cb_size': [], 'size': [], 'sp': [], 'pr': []},
@@ -61,6 +70,7 @@ def extract_compression_data(s, d, mode):
     :param mode: 'n_prune' or 'f_prune' - vocabulary pruning
                  'base', 'norm' or 'dist' - quantization
     """
+
     tmp = s.split('|')
     if len(tmp) < 7 or '-' in tmp[2]:
         return
@@ -82,14 +92,15 @@ def extract_compression_data(s, d, mode):
 
 def plot_quantization_results():
     """Plot quantization results."""
+
     titles = {'base': 'Without normalization',
               'norm': 'With normalization',
               'dist': 'With normalization and distinct codebooks'}
     d = load_compression_results()
 
-    out = {}
+    out = dict()
     for mode in titles.keys():
-        out[mode] = {}
+        out[mode] = dict()
         for i, ch in enumerate(d[mode]['chunks']):
             if ch not in out[mode].keys():
                 out[mode][ch] = [[], []]
@@ -115,6 +126,7 @@ def plot_quantization_results():
 
 def plot_pruning_results():
     """Plot vocabulary pruning results."""
+
     d = load_compression_results()
     labels = {'n_prune': 'pruning by vector norm',
               'f_prune': 'pruning by word frequency'}
@@ -139,6 +151,7 @@ def load_training_results():
     Loads the training results from results.txt for plotting.
     :return: dictionary of loaded data
     """
+
     d = {'sts': {}, 'c4c': {}}
     with open('results.txt', 'r') as f:
         for line in f:
@@ -168,6 +181,7 @@ def extract_training_data(s, d, mode, alg):
     :param alg: last algorithm name
     :return: current algorithm name
     """
+
     tmp = s.split('|')
     if len(tmp) < 6 or '-' in tmp[3]:
         return
@@ -194,6 +208,7 @@ def extract_training_data(s, d, mode, alg):
 
 def plot_training_results():
     """Plot training results."""
+
     d = load_training_results()
 
     plt.figure()
@@ -236,6 +251,7 @@ def score_hist(score):
     Plots a histogram of given scores.
     :param score: score vector
     """
+
     plt.figure()
     plt.hist(score, bins='auto')
     plt.show()
@@ -247,6 +263,7 @@ def score_scatter(y, yhat):
     :param y: target score
     :param yhat: computed score
     """
+
     plt.figure()
     plt.scatter(y, yhat)
     plt.plot([0, 5], [0, 5], 'g')
@@ -265,6 +282,7 @@ def frequency_norm_graph(path, dim=300, header=False, freq=1000):
     :param header: the file includes a one-line header
     :param freq: evaluate only every <freq>-th sample
     """
+
     norms = []
     i = [0, 0]
     with open(path, 'r') as f:
@@ -288,6 +306,7 @@ def frequency_norm_graph(path, dim=300, header=False, freq=1000):
 
 def pearson_vs_spearman():
     """Plots a comparison between Pearson and Spearman correlation coefficients."""
+
     plt.figure()
     x = np.linspace(-1.5, 1.5, 30)
 

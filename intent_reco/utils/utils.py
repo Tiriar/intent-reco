@@ -1,4 +1,12 @@
-"""Useful functions used throughout the project."""
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.utils.utils
+    ~~~~~~~~~~~~~~~~~~~~~~~
+
+    Useful functions used throughout the project.
+
+    @author: tomas.brich@seznam.cz
+"""
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -11,6 +19,7 @@ def get_indices(inp, l):
     :param l: list to search in
     :return: list of indices in <l>
     """
+
     indices = []
     for item in inp:
         try:
@@ -27,6 +36,7 @@ def is_number(s):
     :param s: input string
     :return: True if <s> is a number / False
     """
+
     try:
         float(s)
         return True
@@ -41,6 +51,7 @@ def convert_numbers(s, token='<num>'):
     :param token: token for conversion (default '<num>')
     :return: converted sentence
     """
+
     s = s.split()
     for i in range(len(s)):
         if is_number(s[i]):
@@ -55,6 +66,7 @@ def normalize_score(x, n_max=5):
     :param n_max: max score
     :return: normalized vector
     """
+
     max_score = max(x)
     min_score = min(x)
     return n_max * (x - min_score) / (max_score - min_score)
@@ -67,5 +79,6 @@ def compute_score_pairs(v1, v2):
     :param v2: second list of vectors
     :return: list of normalized scores
     """
+
     sc = np.diag(cosine_similarity(v1, v2))
     return normalize_score(sc.ravel())

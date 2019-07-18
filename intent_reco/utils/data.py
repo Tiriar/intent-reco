@@ -1,16 +1,25 @@
-"""Functions used for data loading and pre-processing."""
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.utils.data
+    ~~~~~~~~~~~~~~~~~~~~~~
 
-import os
+    Functions used for data loading and pre-processing.
+
+    @author: tomas.brich@seznam.cz
+"""
+
 import csv
+import os
 import struct
+
 import nltk.data
 import numpy as np
-from tqdm import tqdm
 from bs4 import BeautifulSoup
 from smart_open import smart_open
+from tqdm import tqdm
 
-from intent_reco.utils.utils import convert_numbers
 from intent_reco.utils.preprocessing import tokenize_sentences
+from intent_reco.utils.utils import convert_numbers
 
 
 def txt_to_tsv(inp, labels=None):
@@ -19,6 +28,7 @@ def txt_to_tsv(inp, labels=None):
     :param inp: input text model file
     :param labels: list of label names to add as vectors
     """
+
     with open(inp) as f:
         lines = f.readlines()
     header = lines[0].split()
@@ -53,9 +63,8 @@ def load_model_txt(path, dim=300, k=None, header=False, normalize=False, keep=No
     :param keep: set of words to keep
     :return: [vocabulary], [vectors], [vector norms]
     """
-    vocab = []
-    vecs = []
-    vsize = []
+
+    vocab, vecs, vsize = [], [], []
     with open(path, 'r', encoding='utf-8') as f:
         if header:
             next(f)
@@ -92,12 +101,14 @@ def load_model_txt(path, dim=300, k=None, header=False, normalize=False, keep=No
 def load_model_ft_bin(path, k=None, normalize=False, keep=None):
     """
     Loads the embedding vectors in FastText binary format.
+    ToDo: Optimize this function.
     :param path: path to the embeddings file
     :param k: number of vectors to load (load all if None)
     :param normalize: normalize the vectors to unit length
     :param keep: set of words to keep
     :return: [vocabulary], [vectors], [vector norms]
     """
+
     vocab, vecs = load_fasttext_format(path)
     if k is not None and k < len(vocab):
         vocab_tmp = vocab[:k]
@@ -131,13 +142,11 @@ def load_fasttext_format(path):
     :param path: path to the binary file
     :return: [vocabulary], [vectors]
     """
+
     with smart_open(path, 'rb') as f:
         magic = struct_unpack(f, '@2i')[0]
         new_format = True if magic == 793712314 else False
-        if new_format:
-            struct_unpack(f, '@12i1d')
-        else:
-            struct_unpack(f, '@10i1d')
+        struct_unpack(f, '@12i1d') if new_format else struct_unpack(f, '@10i1d')
 
         vocab_size = struct_unpack(f, '@3i')[0]
         struct_unpack(f, '@1q')
@@ -184,6 +193,7 @@ def struct_unpack(file_handle, fmt):
     :param fmt: loading options
     :return: unpacked structure
     """
+
     num_bytes = struct.calcsize(fmt)
     return struct.unpack(fmt, file_handle.read(num_bytes))
 
@@ -195,6 +205,7 @@ def load_sts(path, lower=False):
     :param lower: lower-case the text
     :return: dictionary with keys 'X1', 'X2', 'y'
     """
+
     d = {'X1': [], 'X2': [], 'y': []}
     with open(path, 'r', encoding='utf-8') as f:
         for line in f:
@@ -216,14 +227,13 @@ def load_alquist(path, lower=False):
     :param lower: lower-case the text
     :return: dictionary with keys 'X', 'y'
     """
+
     d = {'X': [], 'y': []}
     with open(path) as f:
         reader = csv.reader(f, delimiter='\t')
         for row in reader:
-            d['X'].append(row[2].strip())
+            d['X'].append(row[2].strip().lower() if lower else row[2].strip())
             d['y'].append(row[0].strip())
-            if lower:
-                d['X'][-1] = d['X'][-1].lower()
     return d
 
 
@@ -233,19 +243,18 @@ def sts_starspace(path, mode='train'):
     :param path: path to the folder where STS files are located
     :param mode: train / dev / test
     """
+
     assert mode in ['train', 'dev', 'test']
-    data = load_sts(os.path.join(path, 'sts-{}.csv'.format(mode)), lower=True)
+    data = load_sts(os.path.join(path, f'sts-{mode}.csv'), lower=True)
     x1 = tokenize_sentences(data['X1'])
     x2 = tokenize_sentences(data['X2'])
 
     out = []
     for s1, s2, y in zip(x1, x2, data['y']):
         if mode not in ['train', 'dev'] or y > 4:
-            s1 = convert_numbers(s1)
-            s2 = convert_numbers(s2)
-            out.append(s1 + '\t' + s2 + '\n')
+            out.append(convert_numbers(s1) + '\t' + convert_numbers(s2) + '\n')
 
-    with open(os.path.join(path, 'starspace/sts-{}.txt'.format(mode)), 'w+') as f:
+    with open(os.path.join(path, f'starspace/sts-{mode}.txt'), 'w+') as f:
         f.writelines(out)
 
 
@@ -255,6 +264,7 @@ def sts_unsupervised(path, preprocess=False):
     :param path: path to the STS train file
     :param preprocess: lowercase and tokenize the sentences with Tweet tokenizer
     """
+
     data = load_sts(path)
     sentences = data['X1'] + data['X2']
 
@@ -265,9 +275,7 @@ def sts_unsupervised(path, preprocess=False):
     else:
         opath = os.path.join(tmp[0], 'unsupervised_training', os.path.splitext(tmp[1])[0] + '.txt')
 
-    for i in range(len(sentences)):
-        sentences[i] += '\n'
-
+    sentences = [s + '\n' for s in sentences]
     with open(opath, 'w+') as f:
         f.writelines(sentences)
 
@@ -277,14 +285,13 @@ def alquist_starspace(path):
     Prepares Alquist files in a format needed by StarSpace.
     :param path: path to Alquist train file
     """
+
     data = load_alquist(path)
     sentences = data['X']
     intents = data['y']
     sentences = tokenize_sentences(sentences)
 
-    out = []
-    for s, i in zip(sentences, intents):
-        out.append(s + '\t' + '__label__' + i + '\n')
+    out = [s + '\t' + '__label__' + i + '\n' for s, i in zip(sentences, intents)]
 
     tmp = os.path.split(path)
     opath = os.path.join(tmp[0], 'starspace', os.path.splitext(tmp[1])[0] + '.txt')
@@ -298,6 +305,7 @@ def alquist_unsupervised(path, preprocess=False):
     :param path: path to the Alquist train file
     :param preprocess: lowercase and tokenize the sentences with Tweet tokenizer
     """
+
     data = load_alquist(path)
     sentences = data['X']
 
@@ -309,10 +317,10 @@ def alquist_unsupervised(path, preprocess=False):
         opath = os.path.join(tmp[0], 'unsupervised_training', os.path.splitext(tmp[1])[0] + '.txt')
 
     endings = '.!?'
+    end = ' .' if preprocess else '.'
     for i, s in enumerate(sentences):
         s = ' '.join(s.split())
         if s[-1] not in endings:
-            end = ' .' if preprocess else '.'
             s = s + end
         sentences[i] = s + '\n'
 
@@ -327,12 +335,13 @@ def read_warc(path, clean_html=True):
     :param clean_html: remove html tags and decode html signs
     :return: header -> dict of header entries, content -> list of content lines
     """
+
     with open(path) as fh:
         while True:
             try:
                 line = next(fh)
                 if line == 'WARC/1.0\n':
-                    header = {}
+                    header = dict()
                     line = next(fh)
                     while line != '\n':
                         key, value = line.split(': ', 1)
@@ -360,6 +369,7 @@ def common_crawl_unsupervised(path, k=None, one_sent=False):
     :param k: keep only first <k> training samples
     :param one_sent: one sentence per line needed
     """
+
     data = read_warc(path, clean_html=True)
     tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 
@@ -380,8 +390,7 @@ def common_crawl_unsupervised(path, k=None, one_sent=False):
         content = tokenize_sentences(content)
         samples += len(content)
         out += content
-    for i in range(len(out)):
-        out[i] += '\n'
 
+    out = [el + '\n' for el in out]
     with open(opath, 'w+') as f:
         f.writelines(out)

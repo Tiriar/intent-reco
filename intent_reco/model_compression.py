@@ -1,16 +1,25 @@
-"""Module for compressing the embedding models."""
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.model_compression
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Module for compressing the embedding models.
+
+    @author: tomas.brich@seznam.cz
+"""
 
 import argparse
-import numpy as np
-# import matplotlib.pyplot as plt
 from sys import maxsize
+
+# import matplotlib.pyplot as plt
+import numpy as np
 # from sklearn.decomposition import PCA
 
-from intent_reco.utils.lbg import generate_codebook
-from intent_reco.utils.utils import get_indices
-from intent_reco.utils.data import load_sts, load_model_txt, load_model_ft_bin
-from intent_reco.utils.preprocessing import tokenize_sentences
 from intent_reco.embeddings.compressed import pickle_compressed_model
+from intent_reco.utils.data import load_model_ft_bin, load_model_txt, load_sts
+from intent_reco.utils.lbg import generate_codebook
+from intent_reco.utils.preprocessing import tokenize_sentences
+from intent_reco.utils.utils import get_indices
 
 
 def chunks(l, n):
@@ -20,6 +29,7 @@ def chunks(l, n):
     :param n: chunk size
     :return: yields new chunk
     """
+
     for i in range(0, len(l), n):
         yield l[i:i + n]
 
@@ -32,10 +42,10 @@ def split_vecs(d, n=4, limit=None):
     :param limit: pick a random subset from the vectors of <limit> size
     :return: list of sub-vectors
     """
-    if limit is not None and limit < len(d):
-        elems = d[np.random.choice(d.shape[0], limit, replace=False), :]
-    else:
-        elems = d
+
+    elems = d[np.random.choice(d.shape[0], limit, replace=False), :] \
+        if limit is not None and limit < len(d) else d
+
     vectors = []
     for v in elems:
         vectors += list(chunks(v, n))
@@ -51,16 +61,12 @@ def split_vecs_distinct(d, n=4, limit=None):
     :param limit: pick a random subset from the vectors of <limit> size
     :return: dict: {<sub-vector position>: <list of sub-vectors>}
     """
-    if limit is not None and limit < len(d):
-        elems = d[np.random.choice(d.shape[0], limit, replace=False), :]
-    else:
-        elems = d
+
+    elems = d[np.random.choice(d.shape[0], limit, replace=False), :] \
+        if limit is not None and limit < len(d) else d
+
     len_pos = len(list(chunks(elems[0], n)))
-
-    vectors = {}
-    for i in range(len_pos):
-        vectors[i] = []
-
+    vectors = {i: [] for i in range(len_pos)}
     for v in elems:
         for i, chunk in enumerate(chunks(v, n)):
             vectors[i].append(chunk)
@@ -75,6 +81,7 @@ def convert_vec(v, n, cdb):
     :param cdb: codebook
     :return: converted vector
     """
+
     ch = np.asarray(list(chunks(v, n)))
     dist = np.full((len(ch),), maxsize, dtype=np.float)
     conv = np.zeros((len(ch),), dtype=np.int)
@@ -94,11 +101,11 @@ def convert_vec_distinct(v, n, cdb):
     :param cdb: codebook dictionary
     :return: converted vector
     """
+
     conv = []
     for i, chunk in enumerate(list(chunks(v, n))):
         dist = np.sum((cdb[i]-chunk)**2, axis=1)
-        j = np.asscalar(np.argmin(dist))
-        conv.append(j)
+        conv.append(np.argmin(dist).item())
     return conv
 
 
@@ -113,6 +120,7 @@ def prune_by_norm(words, vectors, vsize, trn=None, keep=10000):
     :param keep: number of words to keep (can be more based on the training set)
     :return: pruned <words>, <vectors> and <vsize>
     """
+
     words_keep = []
 
     # cover the training set
@@ -120,10 +128,8 @@ def prune_by_norm(words, vectors, vsize, trn=None, keep=10000):
         for el in trn:
             tokens = el.split()
             indices = get_indices(tokens, words)
-            tsize = []
-            for i in indices:
-                tsize.append(-1 if i < 0 else vsize[i])
-            max_idx = int(np.argmax(tsize))
+            tsize = [-1 if i < 0 else vsize[i] for i in indices]
+            max_idx = np.argmax(tsize).item()
             if tsize[max_idx] < 0:
                 continue
             best_w = tokens[max_idx]
@@ -141,9 +147,7 @@ def prune_by_norm(words, vectors, vsize, trn=None, keep=10000):
             kept += 1
 
     # create the pruned lists
-    words_out = []
-    vectors_out = []
-    vsize_out = []
+    words_out, vectors_out, vsize_out = [], [], []
     for i, w in enumerate(words):
         if w in words_keep:
             words_out.append(w)
@@ -163,14 +167,13 @@ def prune_by_trn(words, vectors, vsize, trn):
     :param trn: list of training samples
     :return: pruned <words>, <vectors> and <vsize>
     """
+
     tokens = []
     for el in trn:
         tokens += el.split()
     tokens = set(tokens)
 
-    words_out = []
-    vectors_out = []
-    vsize_out = []
+    words_out, vectors_out, vsize_out = [], [], []
     for i, w in enumerate(words):
         if w in tokens:
             words_out.append(w)
@@ -185,6 +188,7 @@ def prune_by_trn(words, vectors, vsize, trn):
 #     Plots vectors in <vs>.
 #     :param vs: input vectors
 #     """
+#
 #     plt.figure()
 #     for v in vs:
 #         plt.plot([0, v[0]], [0, v[1]])
@@ -197,6 +201,7 @@ def codebook_to_strings(codebook, out_list):
     :param codebook: input codebook
     :param out_list: list in which the output is stored
     """
+
     for code in codebook:
         tmp = ''
         for n in code:
@@ -207,7 +212,7 @@ def codebook_to_strings(codebook, out_list):
 parser = argparse.ArgumentParser(description='Embedding model compression')
 
 # data
-parser.add_argument('--emb_path', type=str, metavar='<STRING>', default='data/twitter_unigrams.bin',
+parser.add_argument('--emb_path', type=str, metavar='<STRING>', default='../data/twitter_unigrams.bin',
                     help='path to the embedding model')
 parser.add_argument('--emb_dim', type=int, metavar='<INT>', default=700,
                     help='input embedding dimension [700]')
@@ -220,7 +225,7 @@ parser.add_argument('--prune_norm', type=int, metavar='<INT>', default=None,
 parser.add_argument('-t', '--trn_keep', action='store_true',
                     help='keep words present in a training set')
 parser.add_argument('--trn_path', type=str, metavar='<STRING>',
-                    default='data/stsbenchmark/unsupervised_training/sts-train-prep.txt',
+                    default='../data/stsbenchmark/unsupervised_training/sts-train-prep.txt',
                     help='path to the training file (tokenized plain text) used for <trn_keep>')
 
 # dimensionality reduction
@@ -252,20 +257,21 @@ parser.add_argument('-p', '--pickle', action='store_true',
 parser.add_argument('--precision', type=int, metavar='<INT>', default=5,
                     help='maximum number of decimals used in the output model [5]')
 
-params = parser.parse_args()
-print('Parsed arguments:\n', params, end='\n\n')
-if not params.quantize:
-    params.normalize = False
-    params.distinct = False
-if params.dim > params.emb_dim:
-    params.reduce_dim = False
-
-OUT = params.out_name + '.txt'
-OUT_CB = params.out_name + '_cb.txt'
-OUT_PKL = params.out_name + '.pickle'
-prec = params.precision
 
 if __name__ == '__main__':
+    params = parser.parse_args()
+    print('Parsed arguments:\n', params, end='\n\n')
+    if not params.quantize:
+        params.normalize = False
+        params.distinct = False
+    if params.dim > params.emb_dim:
+        params.reduce_dim = False
+
+    OUT = params.out_name + '.txt'
+    OUT_CB = params.out_name + '_cb.txt'
+    OUT_PKL = params.out_name + '.pickle'
+    prec = params.precision
+
     if params.trn_keep:
         trn_words = []
         with open(params.trn_path) as f:
@@ -300,12 +306,11 @@ if __name__ == '__main__':
         vecs = vecs[:, :params.dim]
 
     if params.quantize:
-        # TODO: Quantize also the vector sizes after normalization?
         print('Computing codebook...')
         cb_out = []
         if params.distinct:
             lbg_data = split_vecs_distinct(vecs, n=params.d_sv, limit=params.qnt_trn)
-            cb = {}
+            cb = dict()
             for pos in lbg_data:
                 print('--- position:', pos, '---')
                 cb[pos] = generate_codebook(lbg_data[pos], cb_size=params.d_cb)[0]
@@ -324,10 +329,7 @@ if __name__ == '__main__':
 
         print('Quantizing vectors...')
         convert_func = convert_vec_distinct if params.distinct else convert_vec
-        vecs_quantized = []
-        for vec in vecs:
-            vecs_quantized.append(convert_func(vec, params.d_sv, cb))
-        vecs = np.asarray(vecs_quantized)
+        vecs_quantized = np.asarray([convert_func(vec, params.d_sv, cb) for vec in vecs])
 
     print('Preparing compressed model...')
     emb_out = []

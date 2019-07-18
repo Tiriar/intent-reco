@@ -1,15 +1,21 @@
+# -*- coding: utf-8 -*-
 """
-Linde-Buzo-Gray algorithm implementation.
+    intent_reco.utils.lbg
+    ~~~~~~~~~~~~~~~~~~~~~
 
-Inspired by https://github.com/internaut/py-lbg
+    Linde-Buzo-Gray algorithm implementation.
+
+    Inspired by https://github.com/internaut/py-lbg
+
+    @author: tomas.brich@seznam.cz
 """
+
+from functools import reduce
+from sys import maxsize
 
 import numpy as np
-from sys import maxsize
-from functools import reduce
 
-_data_size = 0
-_dim = 0
+DATA_SIZE = 0
 
 
 def generate_codebook(data, cb_size, eps=0.00001):
@@ -22,23 +28,22 @@ def generate_codebook(data, cb_size, eps=0.00001):
     :param eps: convergence value
     :return codebook of size <cb_size>, absolute weights, relative weights
     """
-    global _data_size, _dim
 
-    _data_size = len(data)
-    assert _data_size > 0
-    _dim = len(data[0])
-    assert _dim > 0
+    global DATA_SIZE
+
+    DATA_SIZE = len(data)
+    assert DATA_SIZE > 0
     data = np.asarray(data)
 
     # calculate initial codevector - average vector of whole input data
     c0 = np.average(data, axis=0)
     codebook = np.asarray([c0])
-    abs_weights = [_data_size]
+    abs_weights = [DATA_SIZE]
     rel_weights = [1.0]
 
     # compute initial distortion
     tmp = np.sum((data - c0) ** 2, axis=1)
-    avg_dist = reduce(lambda s, d: s + d / _data_size, tmp, 0.0)
+    avg_dist = reduce(lambda s, d: s + d / DATA_SIZE, tmp, 0.0)
 
     # split codevectors
     while len(codebook) < cb_size:
@@ -56,6 +61,7 @@ def split_codebook(data, codebook, eps, initial_avg_dist):
     :param initial_avg_dist: initial average distortion
     :return new codebook, absolute weights, relative weights and average distortion
     """
+
     # split codevectors
     new_codevectors = []
     for c in codebook:
@@ -76,8 +82,8 @@ def split_codebook(data, codebook, eps, initial_avg_dist):
     num_iter = 0
     while err > eps:
         # find closest codevector for each vector in data
-        dist = np.full((_data_size,), maxsize, dtype=np.float)
-        closest_c_list = np.zeros((_data_size,), dtype=np.int)
+        dist = np.full((DATA_SIZE,), maxsize, dtype=np.float)
+        closest_c_list = np.zeros((DATA_SIZE,), dtype=np.int)
         for i, c in enumerate(codebook):
             dist_tmp = np.sum((data-c)**2, axis=1)
             cond = dist_tmp < dist
@@ -85,8 +91,7 @@ def split_codebook(data, codebook, eps, initial_avg_dist):
             closest_c_list[cond] = i
 
         # get vector in data and its idx for each codevector
-        vecs_near_c = {}
-        vec_ids_near_c = {}
+        vecs_near_c, vec_ids_near_c = dict(), dict()
         for i in range(len_codebook):
             cond = closest_c_list == i
             ids = np.where(cond)
@@ -105,13 +110,13 @@ def split_codebook(data, codebook, eps, initial_avg_dist):
 
                 # update the weights
                 abs_weights[i] = num_vecs_near_c
-                rel_weights[i] = num_vecs_near_c / _data_size
+                rel_weights[i] = num_vecs_near_c / DATA_SIZE
 
         # recalculate average distortion value
         prev_avg_dist = avg_dist if avg_dist > 0 else initial_avg_dist
         closest_c_list = np.asarray(closest_c_list)
         tmp = np.sum((data - closest_c_list) ** 2, axis=1)
-        avg_dist = reduce(lambda s, d: s + d / _data_size, tmp, 0.0)
+        avg_dist = reduce(lambda s, d: s + d / DATA_SIZE, tmp, 0.0)
 
         # recalculate the new error value
         err = (prev_avg_dist - avg_dist) / prev_avg_dist

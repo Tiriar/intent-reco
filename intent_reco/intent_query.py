@@ -1,16 +1,26 @@
-"""Script for testing the performance of an intent recognition module on individual queries."""
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.intent_query
+    ~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Script for testing the performance of an intent recognition module on individual queries.
+
+    @author: tomas.brich@seznam.cz
+"""
 
 import json
+
 import numpy as np
 from numpy.linalg import norm
 
-from intent_reco.model_compression import split_vecs, convert_vec
+from intent_reco import DATA_DIR
 from intent_reco.embeddings.compressed import CompressedModel
+from intent_reco.model_compression import convert_vec, split_vecs
 from intent_reco.utils.lbg import generate_codebook
 
-EMBEDDING_PATH = '../data/starspace_C4C_2e_50k.txt'
-EMBEDDING_CB_PATH = '../data/starspace_C4C_2e_50k_cb.txt'
-TEMPLATES = '../data/templates.json'
+EMBEDDING_PATH = DATA_DIR + 'starspace_C4C_2e_50k.txt'
+EMBEDDING_CB_PATH = DATA_DIR + 'starspace_C4C_2e_50k_cb.txt'
+TEMPLATES = DATA_DIR + 'templates.json'
 
 
 def find_intent(t, tn, mat):
@@ -20,9 +30,8 @@ def find_intent(t, tn, mat):
     :param tn: template norms
     :param mat: matrix of the precomputed cosine similarities
     """
-    best = 0
-    bestint = None
-    bestsent = None
+
+    best, bestint, bestsent = 0, None, None
     for intent in t:
         for s_idx, s in enumerate(t[intent]):
             sim = 0
@@ -43,10 +52,10 @@ def normalize(t):
     :param t: template set
     :return: template norms
     """
-    vsize = {}
+
+    vsize = dict()
     for intent in t:
-        vsize[intent] = []
-        temp = []
+        vsize[intent], temp = [], []
         for v in t[intent]:
             n = np.linalg.norm(v)
             temp.append((v/n).tolist())
@@ -62,22 +71,16 @@ if __name__ == '__main__':
 
     # change the template structure for simplicity
     for key in templates:
-        tmp = []
-        for sent in templates[key]:
-            tmp.append(sent['text'])
-        templates[key] = tmp
+        templates[key] = [sent['text'] for sent in templates[key]]
 
     print('Loading the embedding model...')
     model = CompressedModel(EMBEDDING_PATH, EMBEDDING_CB_PATH)
 
     print('Converting the templates...')
-    templates_vec = {}
-    for key in templates:
-        templates_vec[key] = model.transform_sentences(templates[key])
+    templates_vec = {key: model.transform_sentences(cont) for key, cont in templates.items()}
 
     print('Quantizing the templates...')
-    D_SV = 2
-    D_CB = 16
+    D_SV, D_CB = 2, 16
 
     # prepare the data for LBG
     sizes = normalize(templates_vec)
@@ -90,18 +93,18 @@ if __name__ == '__main__':
     # compute the quantization codebook
     codebook = generate_codebook(lbg_data, cb_size=D_CB)[0]
     for key in templates_vec:
-        for i in range(len(templates_vec[key])):
-            templates_vec[key][i] = convert_vec(templates_vec[key][i], D_SV, codebook)
+        templates_vec[key] = [convert_vec(v, D_SV, codebook) for v in templates_vec[key]]
 
     # compute the norms of the quantized templates
-    template_norms = {}
+    template_norms = dict()
     for key in templates_vec:
-        template_norms[key] = []
+        tmp = []
         for sent in templates_vec[key]:
             sq_sum = 0
             for idx in sent:
                 sq_sum += sum(codebook[idx]**2)
-            template_norms[key].append(sq_sum**(1/2))
+            tmp.append(sq_sum**(1/2))
+        template_norms[key] = tmp
 
     print('\n===READY===')
     inp = None

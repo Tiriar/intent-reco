@@ -1,6 +1,15 @@
-"""Utilities for sentence pre-processing during encoding."""
+# -*- coding: utf-8 -*-
+"""
+    intent_reco.utils.preprocessing
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Utilities for sentence pre-processing during encoding.
+
+    @author: tomas.brich@seznam.cz
+"""
 
 import re
+
 from nltk import TweetTokenizer
 
 TOKENIZER = TweetTokenizer()
@@ -12,6 +21,7 @@ def format_token(token):
     :param token: string token
     :return: formatted token
     """
+
     if token == '-LRB-':
         token = '('
     elif token == '-RRB-':
@@ -35,6 +45,7 @@ def tokenize(sentence, tknzr=TOKENIZER, to_lower=True):
     :param to_lower: lowercase or not
     :return: tokenized sentence
     """
+
     sentence = sentence.strip()
     sentence = ' '.join([format_token(x) for x in tknzr.tokenize(sentence)])
     if to_lower:
@@ -53,4 +64,5 @@ def tokenize_sentences(sentences, tknzr=TOKENIZER, to_lower=True):
     :param to_lower: lowercase or not
     :return: tokenized sentences
     """
+
     return [tokenize(s, tknzr=tknzr, to_lower=to_lower) for s in sentences]
