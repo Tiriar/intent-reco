@@ -8,7 +8,7 @@
     @author: tomas.brich@seznam.cz
 """
 
-import fastText
+import fasttext
 
 from intent_reco.embeddings.base import EmbeddingModelBase
 from intent_reco.utils.preprocessing import tokenize_sentences
@@ -21,7 +21,7 @@ class FastText(EmbeddingModelBase):
     """
     def __init__(self, emb_path):
         super().__init__()
-        self.model = fastText.load_model(emb_path)
+        self.model = fasttext.load_model(emb_path)
         self.dim = self.model.get_dimension()
 
     def transform_word(self, word):
@@ -53,22 +53,22 @@ class FastText(EmbeddingModelBase):
         return [w[0].lstrip('__label__') for w in labels]
 
 
-def get_ft_subwords(path):
+def get_ft_subwords(path, out_path, limit=None):
     """
     Brute-forces the subword embeddings from a FastText binary model
-    and writes them to 'subwords.txt' in a word2vec format.
-    The subwords are sorted by (length, frequency).
-    ToDo: Should we sort by frequency only?
+    and writes them to <out_path> in a word2vec format.
+    The subwords are sorted by their frequency.
     :param path: path to the binary file
+    :param out_path: output file path
+    :param limit: limit the number of output words
     """
 
     from tqdm import tqdm
 
-    ft = fastText.load_model(path)
+    ft = fasttext.load_model(path)
     vocab = ft.get_words()
     vocab_len = len(vocab)
-    subwords = dict()
-    sw_ids = dict()
+    subwords, sw_ids = dict(), dict()
 
     print('Processing', vocab_len, 'words...')
     for word in tqdm(vocab, mininterval=1.0):
@@ -86,7 +86,10 @@ def get_ft_subwords(path):
                 subwords[subword] += 1
 
     print('Computing output...')
-    sw_sorted = sorted(subwords, key=lambda x: (len(x), -subwords[x]))
+    sw_sorted = sorted(subwords, key=subwords.get, reverse=True)
+    if limit is not None and len(sw_sorted) > limit:
+        sw_sorted = sw_sorted[:limit]
+
     out = [str(len(sw_sorted)) + ' ' + str(ft.get_dimension()) + '\n']
     for sw in tqdm(sw_sorted, mininterval=1.0):
         tmp = sw
@@ -96,5 +99,5 @@ def get_ft_subwords(path):
         out.append(tmp + '\n')
 
     print('Writing output...')
-    with open('subwords.txt', 'w') as f:
+    with open(out_path, 'w') as f:
         f.writelines(out)

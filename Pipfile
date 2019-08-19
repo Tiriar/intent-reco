@@ -17,6 +17,7 @@ smart_open = "*"
 tqdm = "*"
 
 [dev-packages]
+fasttext = "*"
 #gensim = "*"
 #glove_python = "*"
 #keras = "*"
