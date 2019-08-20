@@ -15,6 +15,7 @@ from sys import maxsize
 import numpy as np
 # from sklearn.decomposition import PCA
 
+from intent_reco import DATA_DIR
 from intent_reco.embeddings.compressed import pickle_compressed_model
 from intent_reco.utils.data import load_model_ft_bin, load_model_txt, load_sts
 from intent_reco.utils.lbg import generate_codebook
@@ -24,7 +25,7 @@ from intent_reco.utils.utils import get_indices
 
 def chunks(l, n):
     """
-    Yields successive n-sized chunks from l.
+    Yields successive <n>-sized chunks from <l>.
     :param l: list of values
     :param n: chunk size
     :return: yields new chunk
@@ -34,42 +35,31 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
-def split_vecs(d, n=4, limit=None):
+def split_vecs(d, n=4, limit=None, distinct=False):
     """
-    Splits vectors in <d> into sub-vectors of size <n> and returns them in a list.
+    Splits vectors in <d> into sub-vectors of size <n> and returns them in a list
+    (or dict with a list for each sub-vector position).
     :param d: input vectors
     :param n: size of sub-vectors
     :param limit: pick a random subset from the vectors of <limit> size
+    :param distinct: distinct codebooks version
     :return: list of sub-vectors
     """
 
     elems = d[np.random.choice(d.shape[0], limit, replace=False), :] \
         if limit is not None and limit < len(d) else d
 
-    vectors = []
-    for v in elems:
-        vectors += list(chunks(v, n))
-    return vectors
+    if distinct:
+        len_pos = len(list(chunks(elems[0], n)))
+        vectors = {i: [] for i in range(len_pos)}
+        for v in elems:
+            for i, chunk in enumerate(chunks(v, n)):
+                vectors[i].append(chunk)
+    else:
+        vectors = []
+        for v in elems:
+            vectors += list(chunks(v, n))
 
-
-def split_vecs_distinct(d, n=4, limit=None):
-    """
-    Splits vectors in <d> into sub-vectors of size <n> and returns
-    a list of sub-vectors for each sub-vector position.
-    :param d: input vectors
-    :param n: size of sub-vectors
-    :param limit: pick a random subset from the vectors of <limit> size
-    :return: dict: {<sub-vector position>: <list of sub-vectors>}
-    """
-
-    elems = d[np.random.choice(d.shape[0], limit, replace=False), :] \
-        if limit is not None and limit < len(d) else d
-
-    len_pos = len(list(chunks(elems[0], n)))
-    vectors = {i: [] for i in range(len_pos)}
-    for v in elems:
-        for i, chunk in enumerate(chunks(v, n)):
-            vectors[i].append(chunk)
     return vectors
 
 
@@ -209,152 +199,164 @@ def codebook_to_strings(codebook, out_list):
         out_list.append(tmp.rstrip() + '\n')
 
 
-parser = argparse.ArgumentParser(description='Embedding model compression')
+def compress(emb_path, emb_dim=300, prune_freq=None, prune_norm=None, trn_path=None, reduce_dim=None,
+             quantize=False, normalize=False, distinct=False, d_sv=5, d_cb=256, qnt_trn=10000,
+             out_name='compressed', pickle_output=False, precision=5):
+    """
+    Main model compression function.
+    :param emb_path: path to the embedding model
+    :param emb_dim: input embedding dimension
+    :param prune_freq: number of words to keep after pruning by vector frequency
+    :param prune_norm: number of words to keep after pruning by vector norm
+    :param trn_path: path to a training file - keep words present in this file
+    :param reduce_dim: embedding dimension after dimensionality reduction
+    :param quantize: use vector quantization
+    :param normalize: normalize the vectors to unit length before quantization
+    :param distinct: create a distinct codebook for each sub-vector position
+    :param d_sv: size of sub-vectors the embeddings are split into
+    :param d_cb: codebook size
+    :param qnt_trn: maximum number of randomly picked vectors for computing the codebook
+    :param out_name: name of the output model (without extension)
+    :param pickle_output: create also a pickled version of the quantized model
+    :param precision: maximum number of decimals used in the output model
+    """
 
-# data
-parser.add_argument('--emb_path', type=str, metavar='<STRING>', default='../data/twitter_unigrams.bin',
-                    help='path to the embedding model')
-parser.add_argument('--emb_dim', type=int, metavar='<INT>', default=700,
-                    help='input embedding dimension [700]')
+    if not quantize:
+        normalize, distinct = False, False
+    if reduce_dim is not None and reduce_dim >= emb_dim:
+        reduce_dim = None
 
-# pruning
-parser.add_argument('--prune_freq', type=int, metavar='<INT>', default=None,
-                    help='number of words to keep after pruning by vector frequency [no pruning]')
-parser.add_argument('--prune_norm', type=int, metavar='<INT>', default=None,
-                    help='number of words to keep after pruning by vector norm [no pruning]')
-parser.add_argument('-t', '--trn_keep', action='store_true',
-                    help='keep words present in a training set')
-parser.add_argument('--trn_path', type=str, metavar='<STRING>',
-                    default='../data/stsbenchmark/unsupervised_training/sts-train-prep.txt',
-                    help='path to the training file (tokenized plain text) used for <trn_keep>')
+    out = out_name + '.txt'
+    out_cb = out_name + '_cb.txt'
 
-# dimensionality reduction
-parser.add_argument('-r', '--reduce_dim', action='store_true',
-                    help='apply dimensionality reduction')
-parser.add_argument('--dim', type=int, metavar='<INT>', default=100,
-                    help='embedding dimension after dimensionality reduction [100]')
-
-# quantization
-parser.add_argument('-q', '--quantize', action='store_true',
-                    help='use vector quantization')
-parser.add_argument('-n', '--normalize', action='store_true',
-                    help='normalize the vectors to unit length before quantization '
-                         '(original norm stored in the compressed model)')
-parser.add_argument('-d', '--distinct', action='store_true',
-                    help='create a distinct codebook for each sub-vector dimension')
-parser.add_argument('--d_sv', type=int, metavar='<INT>', default=10,
-                    help='size of sub-vectors the embeddings are split into [10]')
-parser.add_argument('--d_cb', type=int, metavar='<INT>', default=128,
-                    help='codebook size [128]')
-parser.add_argument('--qnt_trn', type=int, metavar='<INT>', default=10000,
-                    help='maximum number of randomly picked vectors for computing the codebook [10000]')
-
-# output
-parser.add_argument('--out_name', type=str, metavar='<STRING>', default='model_compressed',
-                    help='name of the output model (without extension) [\'model_compressed\']')
-parser.add_argument('-p', '--pickle', action='store_true',
-                    help='create also a pickled version of the quantized model')
-parser.add_argument('--precision', type=int, metavar='<INT>', default=5,
-                    help='maximum number of decimals used in the output model [5]')
-
-
-if __name__ == '__main__':
-    params = parser.parse_args()
-    print('Parsed arguments:\n', params, end='\n\n')
-    if not params.quantize:
-        params.normalize = False
-        params.distinct = False
-    if params.dim > params.emb_dim:
-        params.reduce_dim = False
-
-    OUT = params.out_name + '.txt'
-    OUT_CB = params.out_name + '_cb.txt'
-    OUT_PKL = params.out_name + '.pickle'
-    prec = params.precision
-
-    if params.trn_keep:
+    trn_words = None
+    if trn_path:
         trn_words = []
-        with open(params.trn_path) as f:
+        with open(trn_path) as f:
             for line in f:
                 trn_words += line.strip().split()
         trn_words = set(trn_words)
-    else:
-        trn_words = None
 
     print('Loading data (+ pruning vocabulary by frequency)...')
-    if params.emb_path.endswith('.bin'):
-        vocab, vecs, sizes = load_model_ft_bin(params.emb_path, k=params.prune_freq, normalize=params.normalize,
-                                               keep=trn_words)
+    if emb_path.endswith('.bin'):
+        vocab, vecs, sizes = load_model_ft_bin(emb_path, k=prune_freq, normalize=normalize, keep=trn_words)
     else:
-        vocab, vecs, sizes = load_model_txt(params.emb_path, k=params.prune_freq, normalize=params.normalize,
-                                            dim=params.emb_dim, header=True, keep=trn_words)
+        vocab, vecs, sizes = load_model_txt(emb_path, k=prune_freq, normalize=normalize, dim=emb_dim,
+                                            header=True, keep=trn_words)
 
-    if params.prune_norm:
-        # TODO: Possibility to prune by any training set, not just STS.
+    if prune_norm:
+        # ToDo: Possibility to prune by any training set, not just STS.
         print('Pruning vocabulary by norm...')
-        sts = load_sts('data/stsbenchmark/sts-train.csv')
+        sts = load_sts(DATA_DIR + 'stsbenchmark/sts-train.csv')
         sts = tokenize_sentences(sts['X1'] + sts['X2'], to_lower=True)
-        vocab, vecs, sizes = prune_by_norm(vocab, vecs, sizes, trn=sts, keep=params.prune_norm)
+        vocab, vecs, sizes = prune_by_norm(vocab, vecs, sizes, trn=sts, keep=prune_norm)
         # vocab, vecs, sizes = prune_by_trn(vocab, vecs, sizes, trn=sts)
         print('- pruned vocabulary size:', len(vocab))
 
-    if params.reduce_dim:
+    if reduce_dim:
         print('Reducing dimension...')
-        params.emb_dim = params.dim
-        # pca = PCA(n_components=params.dim, copy=False)
+        emb_dim = reduce_dim
+        # pca = PCA(n_components=reduce_dim, copy=False)
         # vecs = pca.fit_transform(vecs)
-        vecs = vecs[:, :params.dim]
+        vecs = vecs[:, :reduce_dim]
 
-    if params.quantize:
+    if quantize:
         print('Computing codebook...')
         cb_out = []
-        if params.distinct:
-            lbg_data = split_vecs_distinct(vecs, n=params.d_sv, limit=params.qnt_trn)
+        lbg_data = split_vecs(vecs, n=d_sv, limit=qnt_trn, distinct=distinct)
+        if distinct:
             cb = dict()
             for pos in lbg_data:
                 print('--- position:', pos, '---')
-                cb[pos] = generate_codebook(lbg_data[pos], cb_size=params.d_cb)[0]
+                cb[pos] = generate_codebook(lbg_data[pos], cb_size=d_cb)[0]
             for pos in cb:
-                codebook_to_strings(cb[pos].round(prec), cb_out)
+                codebook_to_strings(cb[pos].round(precision), cb_out)
         else:
-            lbg_data = split_vecs(vecs, n=params.d_sv, limit=params.qnt_trn)
-            cb = generate_codebook(lbg_data, cb_size=params.d_cb)[0]
-            codebook_to_strings(cb.round(prec), cb_out)
+            cb = generate_codebook(lbg_data, cb_size=d_cb)[0]
+            codebook_to_strings(cb.round(precision), cb_out)
 
         print('Writing codebook...')
-        with open(OUT_CB, 'w', encoding='utf-8') as file:
-            header = str(params.d_cb) + ' ' + str(params.d_sv) + '\n'
+        with open(out_cb, 'w', encoding='utf-8') as file:
+            header = str(d_cb) + ' ' + str(d_sv) + '\n'
             file.write(header)
             file.writelines(cb_out)
 
         print('Quantizing vectors...')
-        convert_func = convert_vec_distinct if params.distinct else convert_vec
-        vecs_quantized = np.asarray([convert_func(vec, params.d_sv, cb) for vec in vecs])
+        convert_func = convert_vec_distinct if distinct else convert_vec
+        vecs = np.asarray([convert_func(vec, d_sv, cb) for vec in vecs])
 
     print('Preparing compressed model...')
     emb_out = []
-    if not params.quantize:
-        vecs = vecs.round(prec)
+    if not quantize:
+        vecs = vecs.round(precision)
     for idx, word in enumerate(vocab):
         s = word
         for num in vecs[idx]:
             s += ' ' + str(num)
-        if params.normalize:
-            s += ' ' + str(round(sizes[idx], prec))
+        if normalize:
+            s += ' ' + str(round(sizes[idx], precision))
         emb_out.append(s + '\n')
 
     print('Writing compressed model...')
-    dim = int(params.emb_dim/params.d_sv) if params.quantize else params.emb_dim
-    with open(OUT, 'w', encoding='utf-8') as file:
+    dim = int(emb_dim / d_sv) if quantize else emb_dim
+    with open(out, 'w', encoding='utf-8') as file:
         header = str(len(emb_out)) + ' ' + str(dim)
-        if params.normalize:
+        if normalize:
             header += ' NORM'
-        if params.distinct:
+        if distinct:
             header += ' DIST'
         header += '\n'
         file.write(header)
         file.writelines(emb_out)
 
-    if params.pickle and params.quantize:
+    if pickle_output and quantize:
         print('Pickling...')
-        pickle_compressed_model(OUT, OUT_CB, OUT_PKL)
+        pickle_compressed_model(out, out_cb, out_name + '.pickle')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Embedding model compression (default values in [])')
+
+    # data
+    parser.add_argument('--emb_path', type=str, metavar='<STRING>', help='path to the embedding model')
+    parser.add_argument('--emb_dim', type=int, metavar='<INT>', default=300, help='input embedding dimension [300]')
+
+    # pruning
+    parser.add_argument('--prune_freq', type=int, metavar='<INT>', default=None,
+                        help='number of words to keep after pruning by vector frequency [not used]')
+    parser.add_argument('--prune_norm', type=int, metavar='<INT>', default=None,
+                        help='number of words to keep after pruning by vector norm [not used]')
+    parser.add_argument('--trn_path', type=str, metavar='<STRING>', default=None,
+                        help='path to a training file - keep words present in this file [not used]')
+
+    # dimensionality reduction
+    parser.add_argument('--reduce_dim', type=int, metavar='<INT>', default=None,
+                        help='embedding dimension after dimensionality reduction [not used]')
+
+    # quantization
+    parser.add_argument('-q', '--quantize', action='store_true', help='use vector quantization')
+    parser.add_argument('-n', '--normalize', action='store_true',
+                        help='normalize the vectors to unit length before quantization '
+                             '(original norm stored in the compressed model)')
+    parser.add_argument('-d', '--distinct', action='store_true',
+                        help='create a distinct codebook for each sub-vector position')
+    parser.add_argument('--d_sv', type=int, metavar='<INT>', default=5,
+                        help='size of sub-vectors the embeddings are split into [5]')
+    parser.add_argument('--d_cb', type=int, metavar='<INT>', default=256, help='codebook size [256]')
+    parser.add_argument('--qnt_trn', type=int, metavar='<INT>', default=10000,
+                        help='maximum number of randomly picked vectors for computing the codebook [10000]')
+
+    # output
+    parser.add_argument('--out_name', type=str, metavar='<STRING>', default='compressed',
+                        help='name of the output model (without extension) ["compressed"]')
+    parser.add_argument('-p', '--pickle', action='store_true',
+                        help='create also a pickled version of the quantized model')
+    parser.add_argument('--precision', type=int, metavar='<INT>', default=5,
+                        help='maximum number of decimals used in the output model [5]')
+
+    params = parser.parse_args()
+    print('Parsed arguments:\n', params, end='\n\n')
+
+    compress(params.emb_path, params.emb_dim, params.prune_freq, params.prune_norm, params.trn_path, params.reduce_dim,
+             params.quantize, params.normalize, params.distinct, params.d_sv, params.d_cb, params.qnt_trn,
+             params.out_name, params.pickle, params.precision)
