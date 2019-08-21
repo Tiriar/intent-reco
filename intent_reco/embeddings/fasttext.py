@@ -63,6 +63,7 @@ def get_ft_subwords(path, out_path, limit=None):
     :param limit: limit the number of output words
     """
 
+    import time
     from tqdm import tqdm
 
     ft = fasttext.load_model(path)
@@ -85,6 +86,7 @@ def get_ft_subwords(path, out_path, limit=None):
             else:
                 subwords[subword] += 1
 
+    time.sleep(1)
     print('Computing output...')
     sw_sorted = sorted(subwords, key=subwords.get, reverse=True)
     if limit is not None and len(sw_sorted) > limit:
@@ -98,6 +100,7 @@ def get_ft_subwords(path, out_path, limit=None):
             tmp += ' ' + str(num)
         out.append(tmp + '\n')
 
+    time.sleep(1)
     print('Writing output...')
     with open(out_path, 'w') as f:
         f.writelines(out)
