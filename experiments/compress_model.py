@@ -18,7 +18,7 @@ LANG = 'en'
 
 # base model
 MODEL_PATH = DATA_DIR + f'{CORPUS}.{LANG}.vec'
-OUT_NAME = DATA_DIR + f'{CORPUS}_{LANG}_50k'
+OUT_NAME = DATA_DIR + f'{CORPUS}.{LANG}'
 
 compress(
     emb_path=MODEL_PATH,
@@ -35,7 +35,7 @@ compress(
 # sub-word model
 MODEL_PATH = DATA_DIR + f'{CORPUS}.{LANG}.bin'
 MODEL_SW_PATH = DATA_DIR + f'{CORPUS}.{LANG}.sw.vec'
-OUT_NAME = DATA_DIR + f'{CORPUS}_{LANG}_sw_100k'
+OUT_NAME = DATA_DIR + f'{CORPUS}.{LANG}.sw'
 
 get_ft_subwords(MODEL_PATH, MODEL_SW_PATH, limit=100000)
 compress(

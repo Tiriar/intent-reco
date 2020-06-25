@@ -23,16 +23,16 @@ from intent_reco.utils.preprocessing import tokenize_sentences
 from intent_reco.utils.utils import get_indices
 
 
-def chunks(l, n):
+def chunks(values, n):
     """
-    Yields successive <n>-sized chunks from <l>.
-    :param l: list of values
+    Yields successive <n>-sized chunks from <values>.
+    :param values: list of values
     :param n: chunk size
     :return: yields new chunk
     """
 
-    for i in range(0, len(l), n):
-        yield l[i:i + n]
+    for i in range(0, len(values), n):
+        yield values[i:i + n]
 
 
 def split_vecs(d, n=4, limit=None, distinct=False):
@@ -226,8 +226,8 @@ def compress(emb_path, emb_dim=300, prune_freq=None, prune_norm=None, trn_path=N
     if reduce_dim is not None and reduce_dim >= emb_dim:
         reduce_dim = None
 
-    out = out_name + '.txt'
-    out_cb = out_name + '_cb.txt'
+    out = f'{out_name}.txt'
+    out_cb = f'{out_name}.cb.txt'
 
     trn_words = None
     if trn_path:
@@ -277,7 +277,7 @@ def compress(emb_path, emb_dim=300, prune_freq=None, prune_norm=None, trn_path=N
 
         print('Writing codebook...')
         with open(out_cb, 'w', encoding='utf-8') as file:
-            header = str(d_cb) + ' ' + str(d_sv) + '\n'
+            header = f'{d_cb} {d_sv}\n'
             file.write(header)
             file.writelines(cb_out)
 
@@ -292,15 +292,15 @@ def compress(emb_path, emb_dim=300, prune_freq=None, prune_norm=None, trn_path=N
     for idx, word in enumerate(vocab):
         s = word
         for num in vecs[idx]:
-            s += ' ' + str(num)
+            s += f' {num}'
         if normalize:
-            s += ' ' + str(round(sizes[idx], precision))
+            s += f' {round(sizes[idx], precision)}'
         emb_out.append(s + '\n')
 
     print('Writing compressed model...')
     dim = int(emb_dim / d_sv) if quantize else emb_dim
     with open(out, 'w', encoding='utf-8') as file:
-        header = str(len(emb_out)) + ' ' + str(dim)
+        header = f'{len(emb_out)} {dim}'
         if normalize:
             header += ' NORM'
         if distinct:
@@ -311,7 +311,7 @@ def compress(emb_path, emb_dim=300, prune_freq=None, prune_norm=None, trn_path=N
 
     if pickle_output and quantize:
         print('Pickling...')
-        pickle_compressed_model(out, out_cb, out_name + '.pickle')
+        pickle_compressed_model(out, out_cb, f'{out_name}.pickle')
 
 
 if __name__ == '__main__':
