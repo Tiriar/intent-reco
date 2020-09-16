@@ -43,10 +43,10 @@ def txt_to_tsv(inp, labels=None):
         out.append(w + '\t' + vec + '\n')
 
     if labels:
-        for l in labels:
-            vec = np.random.rand(dim).astype(np.str).tolist()
+        for label in labels:
+            vec = list(np.random.rand(dim).astype(np.str))
             vec = '\t'.join(vec)
-            out.append('__label__' + str(l) + '\t' + vec + '\n')
+            out.append('__label__' + str(label) + '\t' + vec + '\n')
 
     with open('model.tsv', 'w') as f:
         f.writelines(out)
@@ -101,7 +101,6 @@ def load_model_txt(path, dim=300, k=None, header=False, normalize=False, keep=No
 def load_model_ft_bin(path, k=None, normalize=False, keep=None):
     """
     Loads the embedding vectors in FastText binary format.
-    ToDo: Optimize this function.
     :param path: path to the embeddings file
     :param k: number of vectors to load (load all if None)
     :param normalize: normalize the vectors to unit length
@@ -109,39 +108,41 @@ def load_model_ft_bin(path, k=None, normalize=False, keep=None):
     :return: [vocabulary], [vectors], [vector norms]
     """
 
-    vocab, vecs = load_fasttext_format(path)
-    if k is not None and k < len(vocab):
-        vocab_tmp = vocab[:k]
-        vecs_tmp = vecs[:k]
-        if keep:
+    if keep and k is not None:
+        vocab, vecs = load_fasttext_format(path)
+        if k < len(vocab):
+            vocab_tmp, vecs_tmp = vocab[:k], vecs[:k]
             trn = [x for x in keep if x not in vocab_tmp]
-            for i, w in enumerate(vocab[k:]):
+            for w, v in zip(vocab[k:], vecs[k:]):
                 if not trn:
                     break
                 if w in trn:
                     vocab_tmp.append(w)
-                    v = vecs[i]
-                    n = np.linalg.norm(v)
-                    vecs_tmp = np.vstack((vecs_tmp, v/n if normalize else v))
+                    vecs_tmp = np.vstack((vecs_tmp, v))
                     trn.remove(w)
-        vocab = vocab_tmp
-        vecs = vecs_tmp
+            vocab, vecs = vocab_tmp, vecs_tmp
+    else:
+        vocab, vecs = load_fasttext_format(path, k=k)
 
-    vsize = []
-    for i, v in enumerate(vecs):
-        n = np.linalg.norm(v)
-        if normalize:
+    vsize = [np.linalg.norm(v) for v in vecs]
+    if normalize:
+        for i, n in enumerate(vsize):
             vecs[i] /= n
-        vsize.append(n)
+
     return vocab, vecs, vsize
 
 
-def load_fasttext_format(path):
+def load_fasttext_format(path, k=None):
     """
     Loads a FastText-format binary file.
     :param path: path to the binary file
+    :param k: number of vectors to load (load all if None)
     :return: [vocabulary], [vectors]
     """
+
+    def struct_unpack(file_handle, fmt):
+        num_bytes = struct.calcsize(fmt)
+        return struct.unpack(fmt, file_handle.read(num_bytes))
 
     with smart_open(path, 'rb') as f:
         magic = struct_unpack(f, '@2i')[0]
@@ -152,7 +153,7 @@ def load_fasttext_format(path):
         struct_unpack(f, '@1q')
         pruneidx_size = None
         if new_format:
-            pruneidx_size, = struct_unpack(f, '@q')
+            pruneidx_size = struct_unpack(f, '@q')[0]
 
         vocab = []
         for i in range(vocab_size):
@@ -161,9 +162,8 @@ def load_fasttext_format(path):
             while char_byte != b'\x00':
                 word_bytes += char_byte
                 char_byte = f.read(1)
-            word = word_bytes.decode('utf8')
-            count, _ = struct_unpack(f, '@qb')
-            vocab.append(word)
+            vocab.append(word_bytes.decode('utf8'))
+            struct_unpack(f, '@qb')
         del vocab[0]
 
         if new_format:
@@ -179,23 +179,15 @@ def load_fasttext_format(path):
         elif float_size == 8:
             dtype = np.dtype(np.float64)
 
+        if k is not None and k < len(vocab):
+            vocab = vocab[:k]
+            num_vectors = len(vocab) + 1
+
         vectors = np.fromfile(f, dtype=dtype, count=num_vectors * dim)
         vectors = vectors.reshape((num_vectors, dim))
         vectors = np.delete(vectors, 0, axis=0)
 
     return vocab, vectors
-
-
-def struct_unpack(file_handle, fmt):
-    """
-    Unpack binary file structure.
-    :param file_handle: handle of the binary file
-    :param fmt: loading options
-    :return: unpacked structure
-    """
-
-    num_bytes = struct.calcsize(fmt)
-    return struct.unpack(fmt, file_handle.read(num_bytes))
 
 
 def load_sts(path, lower=False):
