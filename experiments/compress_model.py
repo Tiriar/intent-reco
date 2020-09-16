@@ -13,7 +13,7 @@ from intent_reco import DATA_DIR
 from intent_reco.embeddings.fasttext import get_ft_subwords
 from intent_reco.model_compression import compress
 
-CORPUS = 'wiki'
+CORPUS = 'cc'
 LANG = 'en'
 
 # base model
@@ -23,7 +23,7 @@ OUT_NAME = DATA_DIR + f'{CORPUS}.{LANG}'
 compress(
     emb_path=MODEL_PATH,
     emb_dim=300,
-    prune_freq=50000,
+    prune_freq=100000,
     quantize=True,
     normalize=True,
     d_sv=5,
@@ -37,11 +37,11 @@ MODEL_PATH = DATA_DIR + f'{CORPUS}.{LANG}.bin'
 MODEL_SW_PATH = DATA_DIR + f'{CORPUS}.{LANG}.sw.vec'
 OUT_NAME = DATA_DIR + f'{CORPUS}.{LANG}.sw'
 
-get_ft_subwords(MODEL_PATH, MODEL_SW_PATH, limit=100000)
+get_ft_subwords(MODEL_PATH, MODEL_SW_PATH, limit=200000)
 compress(
     emb_path=MODEL_SW_PATH,
     emb_dim=300,
-    prune_freq=100000,
+    prune_freq=200000,
     quantize=True,
     normalize=True,
     d_sv=5,

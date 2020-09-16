@@ -94,8 +94,8 @@ class CompressedModel(EmbeddingModelBase):
 
         try:
             vec = self.decode_func(self.vocab[word])
-            if self.normalized:
-                vec *= self.sizes[word]
+            # if self.normalized:
+            #     vec *= self.sizes[word]
             return vec
         except KeyError:
             return self.handle_oov(word)

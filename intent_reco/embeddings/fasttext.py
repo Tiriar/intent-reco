@@ -67,11 +67,12 @@ def get_ft_subwords(path, out_path, limit=None):
     from tqdm import tqdm
 
     ft = fasttext.load_model(path)
-    vocab = ft.get_words()
+    vocab = ft.get_words(on_unicode_error='ignore')
     vocab_len = len(vocab)
     subwords, sw_ids = dict(), dict()
 
     print('Processing', vocab_len, 'words...')
+    time.sleep(1)
     for word in tqdm(vocab, mininterval=1.0):
         sw, ids = ft.get_subwords(word)
         ids = ids.tolist()
